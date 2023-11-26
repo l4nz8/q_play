@@ -1,0 +1,14 @@
+# Folder / files
+*.gb
+*.ram
+*.zip
+*.csv
+.vscode/
+data/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+.ipynb_checkpoints
+
+# Mac os
+.DS_Store 
