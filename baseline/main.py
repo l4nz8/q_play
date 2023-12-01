@@ -1,41 +1,65 @@
-import gym_env
-from pyboy import PyBoy, WindowEvent
+from gym_env import MarioGymAI
+#from logging import logger
+from wrapper import SkipFrame, ResizeObservation
 
-pyboy = PyBoy(gamerom_file='gb_ROM/SuperMarioLand.gb',sound=False,cgb=True, game_wrapper=True)
+from pyboy import PyBoy
+from pyboy.openai_gym import PyBoyGymEnv
+import torch
+import time
 
-actions = [WindowEvent.PRESS_ARROW_DOWN,
-            WindowEvent.PRESS_ARROW_LEFT,
-            WindowEvent.PRESS_ARROW_RIGHT,
-            WindowEvent.PRESS_ARROW_UP,
-            WindowEvent.PRESS_BUTTON_A,
-            WindowEvent.PRESS_BUTTON_B]
-relase_arrow = [WindowEvent.RELEASE_ARROW_DOWN,
-                WindowEvent.RELEASE_ARROW_LEFT,
-                WindowEvent.RELEASE_ARROW_RIGHT,
-                WindowEvent.RELEASE_ARROW_UP]
-release_button = [WindowEvent.RELEASE_BUTTON_A,
-                    WindowEvent.RELEASE_BUTTON_B]
+from gym.wrappers import FrameStack, NormalizeObservation
 
-pyboy.set_emulation_speed(1)
-mario = pyboy.game_wrapper()
-mario.start_game()
+if __name__ == '__main__':
+    
+    use_cuda = torch.cuda.is_available()
+    print(f"Using CUDA: {use_cuda}")
+    print()
+    quiet = False
 
-pyboy.send_input(WindowEvent.PRESS_ARROW_RIGHT)
-while not pyboy.tick():
+    pyboy = PyBoy(gamerom_file='gb_ROM/SuperMarioLand.gb',
+                  window_type="headless" if quiet else "SDL2",
+                  window_scale=3,
+                  sound=False,
+                  cgb=False,
+                  debug=False,
+                  game_wrapper=True)
+    env = PyBoyGymEnv(pyboy, observation_type='raw', action_type='toggle', simultaneous_actions=False)
 
+    env = SkipFrame(env, skip=4)
+    env = ResizeObservation(env, shape=84)  # transform MultiDiscreate to Box for framestack
+    env = NormalizeObservation(env)  # normalize the values
+    env = FrameStack(env, num_stack=4)
+   
+    mario = MarioGymAI(state_dim=(4, 84, 84))
 
-    pyboy.tick()
-    if mario.lives_left == 1:
+    episodes = 40
+    for e in range(episodes):
+        state = env.reset()
+        start = time.time()
 
-        print(mario)
-        mario.reset_game()
+        # Play the game!
+        while True:
 
+            # Run agent on the state
+            action = mario.act(state)
 
-assert mario.lives_left == 2
+            # Agent performs action
+            next_state, reward, done, trunc, info = env.step(action)
 
-pyboy.stop()
+            # Remember
+            mario.cache(state, next_state, action, reward, done)
 
-# exampel code to 
-#while not pyboy.tick():
-#    pass
-#pyboy.stop()
+            # Learn
+            q, loss = mario.learn()
+
+            # Logging
+            #logger.log_step(reward, loss, q)
+
+            # Update state
+            state = next_state
+
+            # Check if end of game
+            if done or start > 400:
+                break
+
+        #logger.log_episode()
