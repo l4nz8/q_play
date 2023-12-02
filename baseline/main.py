@@ -1,12 +1,9 @@
 from gym_env import MarioGymAI
-#from logging import logger
 from wrapper import SkipFrame, ResizeObservation
-
 from pyboy import PyBoy
 from pyboy.openai_gym import PyBoyGymEnv
 import torch
 import time
-
 from gym.wrappers import FrameStack, NormalizeObservation
 
 if __name__ == '__main__':
@@ -14,8 +11,13 @@ if __name__ == '__main__':
     use_cuda = torch.cuda.is_available()
     print(f"Using CUDA: {use_cuda}")
     print()
+    episodes = 40000
     quiet = False
+    train = False
+    action_types = ["press", "toggle", "all"]
+    observation_types = ["raw", "tiles", "compressed", "minimal"]
 
+    # Load emulator
     pyboy = PyBoy(gamerom_file='gb_ROM/SuperMarioLand.gb',
                   window_type="headless" if quiet else "SDL2",
                   window_scale=3,
@@ -23,16 +25,27 @@ if __name__ == '__main__':
                   cgb=False,
                   debug=False,
                   game_wrapper=True)
-    env = PyBoyGymEnv(pyboy, observation_type='raw', action_type='toggle', simultaneous_actions=False)
+    
+    # Load envirament
+    """
+    !!!!!Bug!!!!!!
+    """
+    env = PyBoyGymEnv(pyboy, observation_type=observation_types[1], action_type=action_types[0], simultaneous_actions=False)
 
+    # Apply wrappers on env.
     env = SkipFrame(env, skip=4)
     env = ResizeObservation(env, shape=84)  # transform MultiDiscreate to Box for framestack
     env = NormalizeObservation(env)  # normalize the values
     env = FrameStack(env, num_stack=4)
-   
-    mario = MarioGymAI(state_dim=(4, 84, 84))
+    
+    # Load AI
+    """apply variables/values !!!!Bug!!!"""
+    mario = MarioGymAI(state_dim=(4, 84, 84)) #state_dim=(framestack,(window_shape))
 
-    episodes = 40
+    # Setup emulator parameters
+    pyboy.set_emulation_speed(1)
+    
+    # Training
     for e in range(episodes):
         state = env.reset()
         start = time.time()
@@ -40,7 +53,7 @@ if __name__ == '__main__':
         # Play the game!
         while True:
 
-            # Run agent on the state
+            # Action based on current state
             action = mario.act(state)
 
             # Agent performs action
@@ -52,14 +65,10 @@ if __name__ == '__main__':
             # Learn
             q, loss = mario.learn()
 
-            # Logging
-            #logger.log_step(reward, loss, q)
-
             # Update state
             state = next_state
 
             # Check if end of game
             if done or start > 400:
                 break
-
-        #logger.log_episode()
+    env.close()

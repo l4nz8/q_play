@@ -1,6 +1,5 @@
 from torchvision import transforms as T
-
-# Gym is an OpenAI toolkit for RL
+from skimage import transform
 import gym
 from gym.spaces import Box
 
@@ -13,6 +12,7 @@ class SkipFrame(gym.Wrapper):
     def step(self, action):
         """Repeat action, and sum reward"""
         total_reward = 0.0
+        done = False
         for _ in range(self._skip):
             # Accumulate reward and repeat the same action
             obs, reward, done, info = self.env.step(action)
@@ -34,6 +34,5 @@ class ResizeObservation(gym.ObservationWrapper):
         self.observation_space = Box(low=0, high=255, shape=obs_shape)
 
     def observation(self, observation):
-        transforms = T.Compose([T.Resize(self.shape, antialias=True), T.Normalize(0, 255)])
-        observation = transforms(observation)
-        return observation
+        resize_obs = transform.resize(observation, self.shape)
+        return resize_obs
