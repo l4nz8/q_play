@@ -3,6 +3,7 @@
 *.ram
 *.zip
 *.csv
+test.py
 .vscode/
 data/
 

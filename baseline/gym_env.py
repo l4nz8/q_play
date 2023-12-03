@@ -1,11 +1,8 @@
 import torch
 import numpy as np
 import random
-from pyboy import WindowEvent
-from DeepQ import DDQN
-import numpy as np
-from tensordict import TensorDict
-from torchrl.data import TensorDictReplayBuffer, LazyMemmapStorage
+from collections import deque
+from deep_q import DDQN
 
 class MarioGymAI():
 
@@ -26,14 +23,14 @@ class MarioGymAI():
         self.curr_step = 0
 
         # Memory
-        self.memory = TensorDictReplayBuffer(storage=LazyMemmapStorage(100000, device=torch.device("cpu")))
+        self.memory = deque(maxlen=400000) #100000
         self.batch_size = 32
         self.save_every = 5e5
 
         # Q learning
         self.gamma = 0.9
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.00025)
-        self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=self.config.learning_rate_decay)
+        self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=self.exploration_rate_decay)
         self.loss_fn = torch.nn.SmoothL1Loss()
         self.burnin = 1e4  # min. experiences before training
         self.learn_every = 3  # no. of experiences between updates to Q_online
@@ -53,8 +50,8 @@ class MarioGymAI():
             action_idx = random.randint(0, self.action_space_dim-1)
         # EXPLOIT
         else:
-            state = np.array(state)
-            state = torch.tensor(state).float().to(device=self.device).unsqueeze(0)
+            state = np.array(state, dtype=np.float64)
+            state = torch.tensor(state).to(device=self.device).unsqueeze(0)
 
             # model action
             action_values = self.net(state, model="online")
@@ -79,10 +76,10 @@ class MarioGymAI():
         reward (float),
         done(bool))
         """
-        state = np.array(state)
-        next_state = np.array(next_state)
+        state = np.array(state, dtype=np.float64)
+        next_state = np.array(next_state, dtype=np.float64)
 
-        state = torch.tensor(state).float().to(device=self.device)
+        state = torch.tensor(state).to(device=self.device)
         next_state = torch.tensor(next_state).to(device=self.device)
         action = torch.tensor([action]).to(device=self.device)
         reward = torch.tensor([reward]).to(device=self.device)
