@@ -12,7 +12,7 @@ if __name__ == '__main__':
     use_cuda = torch.cuda.is_available()
     print(f"Using CUDA: {use_cuda}")
     print()
-    episodes = 40000
+    episodes = 4000
     frameStack = 4
     gameDimentions = (20, 16)
     quiet = False
@@ -30,7 +30,7 @@ if __name__ == '__main__':
     
     # Load envirament
     ai_interface = MarioAI()
-    env = CustomPyBoyGym(pyboy, observation_type=observation_types[1])
+    env = CustomPyBoyGym(pyboy, observation_type=observation_types[0])
     env.setAISettings(ai_interface)  # use this settings
     filteredActions = ai_interface.GetActions()  # get possible actions
     print("Possible actions: ", [[WindowEvent(i).__str__() for i in x] for x in filteredActions])
@@ -40,9 +40,9 @@ if __name__ == '__main__':
     !!!!!Bug!!!!!!
     """
     env = SkipFrame(env, skip=4)
-    env = ResizeObservation(env, shape=gameDimentions)  # transform MultiDiscreate to Box for framestack
+    #env = ResizeObservation(env, shape=gameDimentions)  # transform MultiDiscreate to Box for framestack
     env = NormalizeObservation(env)  # normalize the values
-    env = FrameStack(env, num_stack=frameStack)
+    #env = FrameStack(env, num_stack=frameStack)
     
     # Load AI
     mario = MarioGymAI(state_dim=(frameStack,) + gameDimentions, action_space_dim=len(filteredActions)) #state_dim=(framestack,(window_shape))
@@ -55,7 +55,9 @@ if __name__ == '__main__':
 
     # Training
     for e in range(episodes):
-        state = env.reset()
+        state, info = env.reset()
+        #print(state.shape)
+        #exit()
         start = time.time()
 
         # Play the game!
@@ -66,8 +68,7 @@ if __name__ == '__main__':
             action = filteredActions[actionId]
 
             # Agent performs action
-            next_state, reward, done, info = env.step(action)
-
+            next_state, reward, done, truncated, info = env.step(action)
             # Remember
             mario.cache(state, next_state, actionId, reward, done)
 

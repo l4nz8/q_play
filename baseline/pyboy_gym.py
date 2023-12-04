@@ -33,7 +33,7 @@ class CustomPyBoyGym(PyBoyGymEnv):
         observation = self._get_observation()
 
         done = pyboy_done or self.pyboy.game_wrapper().game_over()
-        return observation, reward, done, info
+        return observation, reward, done, None, info
 
     def setAISettings(self, aisettings: MarioAI):
         self.aiSettings = aisettings
@@ -51,4 +51,4 @@ class CustomPyBoyGym(PyBoyGymEnv):
             self.pyboy.send_input(self._release_button[pressedFromBefore])
         self.button_is_pressed = {button: False for button in self._buttons} # reset all buttons
 
-        return self._get_observation()
+        return self._get_observation(), None

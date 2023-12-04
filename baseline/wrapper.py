@@ -15,11 +15,11 @@ class SkipFrame(gym.Wrapper):
         done = False
         for _ in range(self._skip):
             # Accumulate reward and repeat the same action
-            obs, reward, done, info = self.env.step(action)
+            obs, reward, done, _, info = self.env.step(action)
             total_reward += reward
             if done:
                 break
-        return obs, total_reward, done, info
+        return obs, total_reward, done, None, info
 
 
 class ResizeObservation(gym.ObservationWrapper):

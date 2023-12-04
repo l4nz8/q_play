@@ -4,6 +4,9 @@ import random
 from collections import deque
 from deep_q import DDQN
 
+total_loss = 0
+cnt = 0
+
 class MarioGymAI():
 
     def __init__(self, state_dim, action_space_dim):
@@ -11,7 +14,7 @@ class MarioGymAI():
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.state_dim = state_dim
         self.action_space_dim = action_space_dim
-        
+    
         # DDQN algorithm (uses two ConvNets - online and target that independently approximate the optimal action-value function)
         self.net = DDQN(self.state_dim, self.action_space_dim)
         self.net = self.net.to(device=self.device)
@@ -24,7 +27,7 @@ class MarioGymAI():
 
         # Memory
         self.memory = deque(maxlen=400000) #100000
-        self.batch_size = 32
+        self.batch_size = 4
         self.save_every = 5e5
 
         # Q learning
@@ -32,7 +35,7 @@ class MarioGymAI():
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.00025)
         self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=self.exploration_rate_decay)
         self.loss_fn = torch.nn.SmoothL1Loss()
-        self.burnin = 1e4  # min. experiences before training
+        self.burnin = 10#1e4  # min. experiences before training
         self.learn_every = 3  # no. of experiences between updates to Q_online
         self.sync_every = 1e4  # no. of experiences between Q_target & Q_online sync
         
@@ -51,7 +54,7 @@ class MarioGymAI():
         # EXPLOIT
         else:
             state = np.array(state, dtype=np.float64)
-            state = torch.tensor(state).to(device=self.device).unsqueeze(0)
+            state = torch.tensor(state).to(device=self.device).permute(2,0,1).unsqueeze(0)
 
             # model action
             action_values = self.net(state, model="online")
@@ -79,8 +82,8 @@ class MarioGymAI():
         state = np.array(state, dtype=np.float64)
         next_state = np.array(next_state, dtype=np.float64)
 
-        state = torch.tensor(state).to(device=self.device)
-        next_state = torch.tensor(next_state).to(device=self.device)
+        state = torch.tensor(state).permute(2,0,1).to(device=self.device)
+        next_state = torch.tensor(next_state).permute(2,0,1).to(device=self.device)
         action = torch.tensor([action]).to(device=self.device)
         reward = torch.tensor([reward]).to(device=self.device)
         done = torch.tensor([done]).to(device=self.device)
@@ -121,6 +124,7 @@ class MarioGymAI():
         self.net.target.load_state_dict(self.net.online.state_dict())
 
     def learn(self):
+        global total_loss, cnt
         """Update online action value (Q) function with a batch of experiences"""
         if self.curr_step % self.sync_every == 0:
             self.sync_Q_target()
@@ -137,7 +141,7 @@ class MarioGymAI():
         # Sample from memory
         state, next_state, action, reward, done = self.recall()
 
-        # Get TD Estimate
+        # Get TD 
         td_est = self.td_estimate(state, action)
 
         # Get TD Target
@@ -145,5 +149,11 @@ class MarioGymAI():
 
         # Backpropagate loss through Q_online
         loss = self.update_Q_online(td_est, td_tgt)
+        total_loss += loss
+        cnt += 1
+        if cnt == 200:
+            print(total_loss / cnt)
+            total_loss = 0
+            cnt = 0
 
         return (td_est.mean().item(), loss)
