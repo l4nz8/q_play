@@ -9,11 +9,12 @@ cnt = 0
 
 class MarioGymAI():
 
-    def __init__(self, state_dim, action_space_dim):
+    def __init__(self, state_dim, action_space_dim, save_dir):
         super().__init__()
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.state_dim = state_dim
         self.action_space_dim = action_space_dim
+        self.save_dir = save_dir
     
         # DDQN algorithm (uses two ConvNets - online and target that independently approximate the optimal action-value function)
         self.net = DDQN(self.state_dim, self.action_space_dim)
@@ -28,7 +29,7 @@ class MarioGymAI():
         # Memory
         self.memory = deque(maxlen=400000) #100000
         self.batch_size = 4
-        self.save_every = 5e5
+        self.save_every = 10000
 
         # Q learning
         self.gamma = 0.9
@@ -38,7 +39,14 @@ class MarioGymAI():
         self.burnin = 10#1e4  # min. experiences before training
         self.learn_every = 3  # no. of experiences between updates to Q_online
         self.sync_every = 1e4  # no. of experiences between Q_target & Q_online sync
-        
+
+        # Metric lists
+        self.moving_avg_ep_rewards = []
+        self.moving_avg_ep_lengths = []
+        self.moving_avg_ep_avg_losses = []
+        self.moving_avg_ep_avg_qs = []
+
+
     def act(self, state):
         """
         Given a state, choose an epsilon-greedy action and update value of step.
@@ -129,6 +137,7 @@ class MarioGymAI():
         if self.curr_step % self.sync_every == 0:
             self.sync_Q_target()
 
+        # Save every end of sequence
         #if self.curr_step % self.save_every == 0:
         #    self.save()
 
@@ -151,9 +160,43 @@ class MarioGymAI():
         loss = self.update_Q_online(td_est, td_tgt)
         total_loss += loss
         cnt += 1
+        #print(f"step:{self.curr_step}")
         if cnt == 200:
-            print(total_loss / cnt)
+            #print(total_loss / cnt)
             total_loss = 0
             cnt = 0
 
         return (td_est.mean().item(), loss)
+    
+    def update_moving_averages(self, reward, length, loss, q_value):
+        self.moving_avg_ep_rewards.append(reward)
+        self.moving_avg_ep_lengths.append(length)
+        self.moving_avg_ep_avg_losses.append(loss)
+        self.moving_avg_ep_avg_qs.append(q_value)
+
+        if len(self.moving_avg_ep_rewards) > 100:  # Calculate moving averages over the last 100 episodes
+            self.moving_avg_ep_rewards.pop(0)
+            self.moving_avg_ep_lengths.pop(0)
+            self.moving_avg_ep_avg_losses.pop(0)
+            self.moving_avg_ep_avg_qs.pop(0)
+
+        avg_reward = sum(self.moving_avg_ep_rewards) / len(self.moving_avg_ep_rewards)
+        avg_length = sum(self.moving_avg_ep_lengths) / len(self.moving_avg_ep_lengths)
+        avg_loss = sum(self.moving_avg_ep_avg_losses) / len(self.moving_avg_ep_avg_losses)
+        avg_q = sum(self.moving_avg_ep_avg_qs) / len(self.moving_avg_ep_avg_qs)
+
+        return avg_reward, avg_length, avg_loss, avg_q
+    
+    def load_model(self, path):
+        dt = torch.load(path, map_location=torch.device(self.device))
+        self.net.load_state_dict(dt["model"])
+        self.exploration_rate = dt["exploration_rate"]
+        print(f"Loading model at {path} with exploration rate {self.exploration_rate}")
+    
+    def save(self):
+        save_path = (f"{self.save_dir}/mario_net_{int(self.curr_step)}.chkpt")
+        torch.save(
+            dict(model=self.net.state_dict(), exploration_rate=self.exploration_rate),
+            save_path
+        )
+        print(f"MarioNet saved to {save_path} at step {self.curr_step}")

@@ -10,9 +10,9 @@ class DDQN(nn.Module):
     def __init__(self, input_dim, output_dim):
         super().__init__()
         c, h, w = input_dim
-        self.online = self.__build_cnn(3, output_dim)
+        self.online = self.__build_cnn(c, output_dim)
 
-        self.target = self.__build_cnn(3, output_dim)
+        self.target = self.__build_cnn(c, output_dim)
         self.target.load_state_dict(self.online.state_dict())
 
         # Q_target parameters are frozen.
