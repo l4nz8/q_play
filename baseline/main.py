@@ -4,22 +4,23 @@ from pyboy_gym import CustomPyBoyGym
 from qnet_interface import MarioAI
 import torch
 import time
-from wrapper import SkipFrame, ResizeObservation
+from wrapper import SkipFrame, ResizeObservation, GrayPermuteObservation
 from gym.wrappers import FrameStack, NormalizeObservation
 
 import datetime
 import os
 #from logger import MetricLogger
 from torch.utils.tensorboard import SummaryWriter
+import numpy as np
 
 if __name__ == '__main__':
     
     use_cuda = torch.cuda.is_available()
     print(f"Using CUDA: {use_cuda}")
     print()
-    episodes = 4000 
-    frameStack = 3
-    gameDimentions = (20, 16)
+    episodes = 40000 
+    frameStack = 4
+    gameDimentions = (84, 84)
     quiet = False
     action_types = ["press", "toggle", "all"]
     observation_types = ["raw", "tiles", "compressed", "minimal"]
@@ -49,16 +50,13 @@ if __name__ == '__main__':
     print("Possible actions: ", [[WindowEvent(i).__str__() for i in x] for x in filteredActions])
 
     # Apply wrappers on env.
-    """
-    !!!!!Bug!!!!!!
-    """
     env = SkipFrame(env, skip=4)
-    #env = ResizeObservation(env, shape=gameDimentions)  # transform MultiDiscreate to Box for framestack
-    env = NormalizeObservation(env)  # normalize the values
-    #env = FrameStack(env, num_stack=frameStack)
+    env = GrayPermuteObservation(env)
+    env = ResizeObservation(env, shape=gameDimentions)  # transform MultiDiscreate to Box for framestack
+    env = FrameStack(env, num_stack=frameStack)
     
     # Load AI
-    mario = MarioGymAI(state_dim=(frameStack,) + gameDimentions, action_space_dim=len(filteredActions), save_dir=save_dir) #state_dim=(framestack,(window_shape))
+    mario = MarioGymAI(state_dim=(frameStack,) + gameDimentions, action_space_dim=len(filteredActions), save_dir=save_dir)
     
     # check for model_checkpoint
     if not os.path.exists(save_dir):
@@ -90,8 +88,7 @@ if __name__ == '__main__':
         episode_reward = 0
         episode_loss = []
         episode_q = []
-        print(e, "LOLOLOLOLOLOLOLOLOLOLOLOLOL")
-        #print(state.shape)
+        print(e)
         #exit()
         start = time.time()
 
@@ -120,7 +117,6 @@ if __name__ == '__main__':
                 episode_loss.append(loss)
             if q is not None:
                 episode_q.append(q)
-
             episode_reward += reward
 
             # Update state
@@ -142,7 +138,7 @@ if __name__ == '__main__':
         writer.add_scalar("Average Q-Value", avg_q, e)
 
         #logger.log_episode()
-        mario.save()
+        #mario.save()
 
         #if (e % 20 == 0) or (e == episodes - 1):
         #   logger.record(episode=e, epsilon=mario.exploration_rate, step=mario.curr_step)

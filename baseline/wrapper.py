@@ -1,6 +1,7 @@
 from torchvision import transforms as T
 from skimage import transform
 import gym
+import numpy as np
 from gym.spaces import Box
 
 class SkipFrame(gym.Wrapper):
@@ -21,7 +22,6 @@ class SkipFrame(gym.Wrapper):
                 break
         return obs, total_reward, done, None, info
 
-
 class ResizeObservation(gym.ObservationWrapper):
     def __init__(self, env, shape):
         super().__init__(env)
@@ -30,9 +30,19 @@ class ResizeObservation(gym.ObservationWrapper):
         else:
             self.shape = tuple(shape)
         
-        obs_shape = self.shape + self.observation_space.shape[2:]
-        self.observation_space = Box(low=0, high=255, shape=obs_shape)
+        self.observation_space = Box(low=0, high=255, shape=self.shape, dtype=np.float32)
 
     def observation(self, observation):
-        resize_obs = transform.resize(observation, self.shape)
+        resize_obs = transform.resize(observation, self.shape, anti_aliasing=True)
         return resize_obs
+
+class GrayPermuteObservation(gym.ObservationWrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        obs_shape = self.observation_space.shape[:2]
+        self.observation_space = Box(low=0, high=255, shape=obs_shape, dtype=np.uint8)
+
+    def observation(self, observation):        
+        # Auswahl eines Kanals aus den Graubild-Kanälen
+        observation = observation[:, :, 0]
+        return observation

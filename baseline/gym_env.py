@@ -4,6 +4,9 @@ import random
 from collections import deque
 from deep_q import DDQN
 
+from tensordict import TensorDict
+from torchrl.data import TensorDictReplayBuffer, LazyMemmapStorage
+
 total_loss = 0
 cnt = 0
 
@@ -17,7 +20,7 @@ class MarioGymAI():
         self.save_dir = save_dir
     
         # DDQN algorithm (uses two ConvNets - online and target that independently approximate the optimal action-value function)
-        self.net = DDQN(self.state_dim, self.action_space_dim)
+        self.net = DDQN(self.state_dim, self.action_space_dim).float()
         self.net = self.net.to(device=self.device)
 
         # network parameter
@@ -27,16 +30,16 @@ class MarioGymAI():
         self.curr_step = 0
 
         # Memory
-        self.memory = deque(maxlen=400000) #100000
-        self.batch_size = 4
-        self.save_every = 10000
+        self.memory = TensorDictReplayBuffer(storage=LazyMemmapStorage(100000, device=torch.device("cpu")))
+        self.batch_size = 32
+        self.save_every = 1e4
 
         # Q learning
         self.gamma = 0.9
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.00025)
         self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=self.exploration_rate_decay)
         self.loss_fn = torch.nn.SmoothL1Loss()
-        self.burnin = 10#1e4  # min. experiences before training
+        self.burnin = 1e4  # min. experiences before training
         self.learn_every = 3  # no. of experiences between updates to Q_online
         self.sync_every = 1e4  # no. of experiences between Q_target & Q_online sync
 
@@ -57,13 +60,12 @@ class MarioGymAI():
         action_idx (int): An integer representing which action Mario will perform
         """
         # EXPLORE
-        if (random.random() < self.exploration_rate):
-            action_idx = random.randint(0, self.action_space_dim-1)
+        if (np.random.rand() < self.exploration_rate):
+            action_idx = np.random.randint(0, self.action_space_dim)
         # EXPLOIT
         else:
-            state = np.array(state, dtype=np.float64)
-            state = torch.tensor(state).to(device=self.device).permute(2,0,1).unsqueeze(0)
-
+            state = np.array(state, dtype=np.float32)
+            state = torch.tensor(state, device=self.device).unsqueeze(0)
             # model action
             action_values = self.net(state, model="online")
             action_idx = torch.argmax(action_values, axis=1).item()
@@ -87,31 +89,32 @@ class MarioGymAI():
         reward (float),
         done(bool))
         """
-        state = np.array(state, dtype=np.float64)
-        next_state = np.array(next_state, dtype=np.float64)
+        state = np.array(state, dtype=np.float32)
+        next_state = np.array(next_state, dtype=np.float32)
 
-        state = torch.tensor(state).permute(2,0,1).to(device=self.device)
-        next_state = torch.tensor(next_state).permute(2,0,1).to(device=self.device)
-        action = torch.tensor([action]).to(device=self.device)
-        reward = torch.tensor([reward]).to(device=self.device)
-        done = torch.tensor([done]).to(device=self.device)
+        state = torch.tensor(state, device=self.device)
+        next_state = torch.tensor(next_state, device=self.device)
+        action = torch.tensor([action], device=self.device)
+        reward = torch.tensor([reward], device=self.device)
+        done = torch.tensor([done], device=self.device)
 
-        self.memory.append((state, next_state, action, reward, done))
+        self.memory.add(TensorDict({"state": state, "next_state": next_state, "action": action, "reward": reward, "done": done}, batch_size=[]))
 
     def recall(self):
         """
         Retrieve a batch of experiences from memory
         """
-        batch = random.sample(self.memory, self.batch_size)
-        state, next_state, action, reward, done = map(torch.stack, zip(*batch))
+        batch = self.memory.sample(self.batch_size).to(self.device)
+        state, next_state, action, reward, done = (batch.get(key) for key in("state", "next_state", "action", "reward", "done"))
         return state, next_state, action.squeeze(), reward.squeeze(), done.squeeze()
     
+    # Building qlearning network
     def td_estimate(self, state, action):
         model_output = self.net(state, model="online")
         current_Q = model_output[np.arange(0, self.batch_size), action]  # Q_online(s,a)
         return current_Q
 
-    @torch.no_grad()
+    @torch.no_grad() # Disable gradient calculations here (because we don’t need to backpropagate "target")
     def td_target(self, reward, next_state, done):
         next_state_Q = self.net(next_state, model="online")
         best_action = torch.argmax(next_state_Q, axis=1)
@@ -158,13 +161,13 @@ class MarioGymAI():
 
         # Backpropagate loss through Q_online
         loss = self.update_Q_online(td_est, td_tgt)
-        total_loss += loss
-        cnt += 1
+        #total_loss += loss
+        #cnt += 1
         #print(f"step:{self.curr_step}")
-        if cnt == 200:
+        #if cnt == 200:
             #print(total_loss / cnt)
-            total_loss = 0
-            cnt = 0
+            #total_loss = 0
+            #cnt = 0
 
         return (td_est.mean().item(), loss)
     
@@ -194,7 +197,7 @@ class MarioGymAI():
         print(f"Loading model at {path} with exploration rate {self.exploration_rate}")
     
     def save(self):
-        save_path = (f"{self.save_dir}/mario_net_{int(self.curr_step)}.chkpt")
+        save_path = (f"{self.save_dir}/mario_net_step_{int(self.curr_step)}.chkpt")
         torch.save(
             dict(model=self.net.state_dict(), exploration_rate=self.exploration_rate),
             save_path
