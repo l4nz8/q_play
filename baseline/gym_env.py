@@ -50,7 +50,7 @@ class MarioGymAI():
         self.moving_avg_ep_avg_qs = []
 
 
-    def act(self, state):
+    def act(self, state, train_mode=True):
         """
         Given a state, choose an epsilon-greedy action and update value of step.
 
@@ -59,20 +59,29 @@ class MarioGymAI():
         Outputs:
         action_idx (int): An integer representing which action Mario will perform
         """
-        # EXPLORE
-        if (np.random.rand() < self.exploration_rate):
-            action_idx = np.random.randint(0, self.action_space_dim)
-        # EXPLOIT
-        else:
+        if not train_mode:
+            # Im Spielmodus: Wähle die Aktion mit dem höchsten Q-Wert
             state = np.array(state, dtype=np.float32)
             state = torch.tensor(state, device=self.device).unsqueeze(0)
-            # model action
-            action_values = self.net(state, model="online")
+            with torch.no_grad():  # Keine Notwendigkeit für Gradientenberechnung
+                action_values = self.net(state, model="online")
             action_idx = torch.argmax(action_values, axis=1).item()
+        else:
+            # Im Trainingsmodus: Bestehende Logik für Exploration und Exploitation
+            # EXPLORE
+            if (np.random.rand() < self.exploration_rate):
+                action_idx = np.random.randint(0, self.action_space_dim)
+            # EXPLOIT
+            else:
+                state = np.array(state, dtype=np.float32)
+                state = torch.tensor(state, device=self.device).unsqueeze(0)
+                # model action
+                action_values = self.net(state, model="online")
+                action_idx = torch.argmax(action_values, axis=1).item()
 
-        # decrease exploration_rate
-        self.exploration_rate *= self.exploration_rate_decay
-        self.exploration_rate = max(self.exploration_rate_min, self.exploration_rate)
+            # decrease exploration_rate
+            self.exploration_rate *= self.exploration_rate_decay
+            self.exploration_rate = max(self.exploration_rate_min, self.exploration_rate)
 
         # increment step
         self.curr_step += 1

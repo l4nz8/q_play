@@ -13,6 +13,21 @@ import os
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 
+import argparse
+
+# Argument Parser Setup
+parser = argparse.ArgumentParser(description="Train or Play with Mario AI")
+group = parser.add_mutually_exclusive_group()
+
+# Erweiterung des Argument Parsers
+group.add_argument("--world", type=int, default=1, help="Specify the world to play/train in (z.B. 1 für Welt 1) default=1")
+group.add_argument("--level", type=int, default=1, help="Specify the lvl to play/train in (z.B. 1 für Karte 1) default=1")
+
+parser.add_argument("-m", "--mode", choices=["train", "play"], default="train", 
+                    help="Mode to run the AI: 'train' for training, 'play' to play with a trained model.")
+
+args = parser.parse_args()
+
 if __name__ == '__main__':
     
     use_cuda = torch.cuda.is_available()
@@ -28,10 +43,11 @@ if __name__ == '__main__':
     """
     Logger
     """
-    now = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
     save_dir = "checkpoints"
-    # TensorBoard writer
-    writer = SummaryWriter(f"runs/mario_experiment_{now}")
+    if args.mode == "train":
+        now = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+        # TensorBoard writer
+        writer = SummaryWriter(f"runs/mario_experiment_{now}")
 
     # Load emulator
     pyboy = PyBoy(gamerom_file='gb_ROM/SuperMarioLand.gb',
@@ -48,6 +64,11 @@ if __name__ == '__main__':
     env.setAISettings(ai_interface)  # use this settings
     filteredActions = ai_interface.GetActions()  # get possible actions
     print("Possible actions: ", [[WindowEvent(i).__str__() for i in x] for x in filteredActions])
+
+    # Setze Welt und Level hier
+    world = args.world
+    level = args.level
+    env.set_world_level(world, level)  # Aufruf der neuen Methode
 
     # Apply wrappers on env.
     env = SkipFrame(env, skip=4)
@@ -74,74 +95,101 @@ if __name__ == '__main__':
 
     # Assuming MetricLogger is a class or object you're using
     #logger = MetricLogger(save_dir)
-
-    # Setup emulator parameters
-    pyboy.set_emulation_speed(0)
-    print("Training mode")
-    print("Total Episodes: ", episodes)
+    
     #mario.net.train()
 
     # Training
-    for e in range(episodes):
+    if args.mode == "train":
+        # Setup emulator parameters
+        pyboy.set_emulation_speed(0)
+        print("Training mode activated.")
+        print("Total Episodes: ", episodes)
+        # Führe den Trainingsmodus aus
+        # Dies könnte die Initialisierung der Umgebung, das Laden des Modells (falls vorhanden)
+        # und den Beginn des Trainingsloops beinhalten.
+        for e in range(episodes):
+            state, info = env.reset()
+            step = 0
+            episode_reward = 0
+            episode_loss = []
+            episode_q = []
+            print(e)
+            #exit()
+            start = time.time()
+
+            # Play the game!
+            while True:
+
+                # Action based on current state
+                actionId = mario.act(state)
+                step +=1
+                #print(step)
+                action = filteredActions[actionId]
+                # Agent performs action
+                next_state, reward, done, truncated, info = env.step(action)
+                # Remember
+                mario.cache(state, next_state, actionId, reward, done)
+
+                # Learn
+                q, loss = mario.learn()
+
+                # Logging
+                #logger.log_step(reward, loss, q)
+
+                # Updating metrics
+                if loss is not None:
+                    episode_loss.append(loss)
+                if q is not None:
+                    episode_q.append(q)
+                episode_reward += reward
+
+                # Update state
+                state = next_state
+
+                # Check if end of game
+                if done or time.time() - start > 500:
+                    break
+            
+            # Am Ende jeder Episode
+            avg_loss = sum(episode_loss) / len(episode_loss) if episode_loss else 0
+            avg_q = sum(episode_q) / len(episode_q) if episode_q else 0
+
+            # Calculate and log metrics
+            avg_reward, avg_length, avg_loss, avg_q = mario.update_moving_averages(episode_reward, step, avg_loss, avg_q)
+            writer.add_scalar("Average Reward", avg_reward, e)
+            writer.add_scalar("Average Length", avg_length, e)
+            writer.add_scalar("Average Loss", avg_loss, e)
+            writer.add_scalar("Average Q-Value", avg_q, e)
+
+            #logger.log_episode()
+            #mario.save()
+
+            #if (e % 20 == 0) or (e == episodes - 1):
+            #   logger.record(episode=e, epsilon=mario.exploration_rate, step=mario.curr_step)
+
+    # Playing
+    elif args.mode == "play":
+        print("Play mode activated.")
+        # Führe den Spielmodus aus
+        # Dies beinhaltet das Laden des trainierten Modells und das Spielen des Spiels ohne weitere Trainingsschritte.
+        # Stelle sicher, dass du 'train_mode=False' verwendest, wenn du 'act' aufrufst.
+        #mario.load_model('path_to_your_trained_model.chkpt')
         state, info = env.reset()
-        step = 0
-        episode_reward = 0
-        episode_loss = []
-        episode_q = []
-        print(e)
-        #exit()
-        start = time.time()
-
-        # Play the game!
+        total_reward = 0
         while True:
-
-            # Action based on current state
-            actionId = mario.act(state)
-            step +=1
-            #print(step)
+            actionId = mario.act(state, train_mode=False)  # Verwende das Modell, um die Aktion zu wählen
             action = filteredActions[actionId]
-
-            # Agent performs action
             next_state, reward, done, truncated, info = env.step(action)
             # Remember
             mario.cache(state, next_state, actionId, reward, done)
 
-            # Learn
-            q, loss = mario.learn()
-
-            # Logging
-            #logger.log_step(reward, loss, q)
-
-            # Updating metrics
-            if loss is not None:
-                episode_loss.append(loss)
-            if q is not None:
-                episode_q.append(q)
-            episode_reward += reward
-
+            total_reward += reward
+            
             # Update state
             state = next_state
-
-            # Check if end of game
-            if done or time.time() - start > 500:
+            if done:
                 break
-        
-        # Am Ende jeder Episode
-        avg_loss = sum(episode_loss) / len(episode_loss) if episode_loss else 0
-        avg_q = sum(episode_q) / len(episode_q) if episode_q else 0
-
-        # Calculate and log metrics
-        avg_reward, avg_length, avg_loss, avg_q = mario.update_moving_averages(episode_reward, step, avg_loss, avg_q)
-        writer.add_scalar("Average Reward", avg_reward, e)
-        writer.add_scalar("Average Length", avg_length, e)
-        writer.add_scalar("Average Loss", avg_loss, e)
-        writer.add_scalar("Average Q-Value", avg_q, e)
-
-        #logger.log_episode()
-        #mario.save()
-
-        #if (e % 20 == 0) or (e == episodes - 1):
-        #   logger.record(episode=e, epsilon=mario.exploration_rate, step=mario.curr_step)
+        print(f"Total score: {total_reward}")
 
     env.close()
     writer.close()
