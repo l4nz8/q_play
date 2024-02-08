@@ -24,9 +24,62 @@ group.add_argument("--world", type=int, default=1, help="Specify the world to pl
 group.add_argument("--level", type=int, default=1, help="Specify the lvl to play/train in (z.B. 1 für Karte 1) default=1")
 
 parser.add_argument("-m", "--mode", choices=["train", "play"], default="train", 
-                    help="Mode to run the AI: 'train' for training, 'play' to play with a trained model.")
+                    help="Mode to run the AI: 'train' for training, 'play' to play with a trained model. (default=train)")
+
+parser.add_argument("-exp", "--exploration", type=float, default=None,
+                    help="Set a custom exploration rate for the model after loading. Useful for transfer learning.")
 
 args = parser.parse_args()
+
+def list_available_models_and_params(save_dir):
+    if not os.path.exists(save_dir):
+        print("Checkpoint directory not found, creating a directory.")
+        os.makedirs(save_dir)
+        return []
+    
+    checkpoints = [file for file in os.listdir(save_dir) if file.endswith(".chkpt")]
+    checkpoints.sort()  # sortiert die Dateien
+    if not checkpoints:
+        print("No checkpoints available, start a new training session.")
+        return []
+
+    print("Available model versions and their parameters:")
+    for idx, model in enumerate(checkpoints, start=1):
+        checkpoint_path = os.path.join(save_dir, model)
+        try:
+            checkpoint = torch.load(checkpoint_path, map_location=torch.device('cpu'))
+            exploration_rate = checkpoint.get('exploration_rate', 'Not available')
+            print(f"{idx}: {model}, Exploration Rate: {exploration_rate}")
+        except Exception as e:
+            print(f"Could not read {model}: {e}")
+    return checkpoints
+
+def load_model_interactively(available_checkpoints, save_dir, mario):
+    if len(available_checkpoints) == 0:
+        return
+    
+    model_version = None
+    if len(available_checkpoints) > 1:
+        version_input = input("Please enter the version number to load (or press Enter to use the latest): ")
+        if version_input:
+            try:
+                model_version = int(version_input)
+                if model_version < 1 or model_version > len(available_checkpoints):
+                    raise ValueError("Invalid version number selected.")
+            except ValueError:
+                print("Invalid input. Exiting.")
+                exit()
+
+    selected_checkpoint = available_checkpoints[-1 if model_version is None else model_version - 1]
+    checkpoint_path = os.path.join(save_dir, selected_checkpoint)
+    print(f"Loading model: {selected_checkpoint}")
+    # Modell laden mit mario.load_model(checkpoint_path)
+    mario.load_model(checkpoint_path)
+
+    # Anpassen der Exploration Rate, falls spezifiziert
+    if args.exploration is not None:
+        mario.exploration_rate = args.exploration
+        print(f"Exploration Rate set to {args.exploration} for Transfer Learning.")
 
 if __name__ == '__main__':
     
@@ -44,6 +97,7 @@ if __name__ == '__main__':
     Logger
     """
     save_dir = "checkpoints"
+
     if args.mode == "train":
         now = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
         # TensorBoard writer
@@ -65,7 +119,7 @@ if __name__ == '__main__':
     filteredActions = ai_interface.GetActions()  # get possible actions
     print("Possible actions: ", [[WindowEvent(i).__str__() for i in x] for x in filteredActions])
 
-    # Setze Welt und Level hier
+    # Setze Welt und Level
     world = args.world
     level = args.level
     env.set_world_level(world, level)  # Aufruf der neuen Methode
@@ -78,25 +132,10 @@ if __name__ == '__main__':
     
     # Load AI
     mario = MarioGymAI(state_dim=(frameStack,) + gameDimentions, action_space_dim=len(filteredActions), save_dir=save_dir)
-    
-    # check for model_checkpoint
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-        print("Checkpoint directory not found, create a directory.")
 
-    else:
-        checkpoints = [file for file in os.listdir(save_dir) if file.endswith(".chkpt")]
-        if checkpoints:
-            last_checkpoint = os.path.join(save_dir, checkpoints[-1])
-            mario.load_model(last_checkpoint)
-            print(f"load checkpoint: {checkpoints[-1]}")
-        else:
-            print("No checkpoints available, start a new training session.")
-
-    # Assuming MetricLogger is a class or object you're using
-    #logger = MetricLogger(save_dir)
-    
-    #mario.net.train()
+    # Laden der checkpoints
+    available_checkpoints = list_available_models_and_params(save_dir)
+    load_model_interactively(available_checkpoints, save_dir, mario)
 
     # Training
     if args.mode == "train":
@@ -105,8 +144,6 @@ if __name__ == '__main__':
         print("Training mode activated.")
         print("Total Episodes: ", episodes)
         # Führe den Trainingsmodus aus
-        # Dies könnte die Initialisierung der Umgebung, das Laden des Modells (falls vorhanden)
-        # und den Beginn des Trainingsloops beinhalten.
         for e in range(episodes):
             state, info = env.reset()
             step = 0
@@ -171,17 +208,12 @@ if __name__ == '__main__':
     elif args.mode == "play":
         print("Play mode activated.")
         # Führe den Spielmodus aus
-        # Dies beinhaltet das Laden des trainierten Modells und das Spielen des Spiels ohne weitere Trainingsschritte.
-        # Stelle sicher, dass du 'train_mode=False' verwendest, wenn du 'act' aufrufst.
-        #mario.load_model('path_to_your_trained_model.chkpt')
         state, info = env.reset()
         total_reward = 0
         while True:
             actionId = mario.act(state, train_mode=False)  # Verwende das Modell, um die Aktion zu wählen
             action = filteredActions[actionId]
             next_state, reward, done, truncated, info = env.step(action)
-            # Remember
-            mario.cache(state, next_state, actionId, reward, done)
 
             total_reward += reward
             
