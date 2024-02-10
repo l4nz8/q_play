@@ -16,7 +16,18 @@ import numpy as np
 import argparse
 
 # Argument Parser Setup
-parser = argparse.ArgumentParser(description="Train or Play with Mario AI")
+parser = argparse.ArgumentParser(description="Train or Play with Mario AI", 
+                                 epilog="""PyBoy emulator controls:
+  I: Toggle screen recording (press again to stop)
+  O: Take screenshot
+  X: Save game state
+  Z: Load game state
+  P: Pause Game
+  Space: Toggle Unlimited FPS on/off
+  ESC: Exit the game
+These controls allow direct interaction with the emulator during gameplay.""", 
+formatter_class=argparse.RawTextHelpFormatter)
+
 group = parser.add_mutually_exclusive_group()
 
 # Erweiterung des Argument Parsers
@@ -28,6 +39,9 @@ parser.add_argument("-m", "--mode", choices=["train", "play"], default="train",
 
 parser.add_argument("-exp", "--exploration", type=float, default=None,
                     help="Set a custom exploration rate for the model after loading. Useful for transfer learning.")
+
+parser.add_argument("-ls", "--load-state", action="store_true",
+                    help="Load a saved game state from the default save location (gb_ROM/SuperMarioLand.gb.state).")
 
 args = parser.parse_args()
 
@@ -114,7 +128,7 @@ if __name__ == '__main__':
     
     # Load envirament
     ai_interface = MarioAI()
-    env = CustomPyBoyGym(pyboy, observation_type=observation_types[0])
+    env = CustomPyBoyGym(pyboy, observation_type=observation_types[0], load_initial_state=args.load_state)
     env.setAISettings(ai_interface)  # use this settings
     filteredActions = ai_interface.GetActions()  # get possible actions
     print("Possible actions: ", [[WindowEvent(i).__str__() for i in x] for x in filteredActions])
