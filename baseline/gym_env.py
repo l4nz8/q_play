@@ -1,23 +1,19 @@
 import torch
 import numpy as np
-import random
-from collections import deque
 from deep_q import DDQN
 
 from tensordict import TensorDict
 from torchrl.data import TensorDictReplayBuffer, LazyMemmapStorage
 
-total_loss = 0
-cnt = 0
-
 class MarioGymAI():
 
-    def __init__(self, state_dim, action_space_dim, save_dir):
+    def __init__(self, state_dim, action_space_dim, save_dir, args):
         super().__init__()
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.state_dim = state_dim
         self.action_space_dim = action_space_dim
         self.save_dir = save_dir
+        self.args = args # argparse
     
         # DDQN algorithm (uses two ConvNets - online and target that independently approximate the optimal action-value function)
         self.net = DDQN(self.state_dim, self.action_space_dim).float()
@@ -32,12 +28,20 @@ class MarioGymAI():
         # Memory
         self.memory = TensorDictReplayBuffer(storage=LazyMemmapStorage(100000, device=torch.device("cpu")))
         self.batch_size = 32
-        self.save_every = 1e4
+        #self.save_every = 1e4
 
         # Q learning
         self.gamma = 0.9
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.00025)
-        self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=self.exploration_rate_decay)
+        if self.args.lr_scheduler == "StepLR":
+            self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=self.exploration_rate_decay)
+            print(f"scheduler set to {self.args.lr_scheduler}")
+        elif self.args.lr_scheduler == "Cyclic":
+            self.scheduler = torch.optim.lr_scheduler.CyclicLR(self.optimizer, 
+                                                               base_lr=0.0001, max_lr=0.001, step_size_up=2000, 
+                                                               mode='triangular', cycle_momentum=False)
+            print(f"scheduler set to {self.args.lr_scheduler}")
+
         self.loss_fn = torch.nn.SmoothL1Loss()
         self.burnin = 1e4  # min. experiences before training
         self.learn_every = 3  # no. of experiences between updates to Q_online
@@ -48,7 +52,6 @@ class MarioGymAI():
         self.moving_avg_ep_lengths = []
         self.moving_avg_ep_avg_losses = []
         self.moving_avg_ep_avg_qs = []
-
 
     def act(self, state, train_mode=True):
         """
@@ -192,23 +195,40 @@ class MarioGymAI():
             self.moving_avg_ep_avg_losses.pop(0)
             self.moving_avg_ep_avg_qs.pop(0)
 
-        avg_reward = sum(self.moving_avg_ep_rewards) / len(self.moving_avg_ep_rewards)
+        self.avg_reward = sum(self.moving_avg_ep_rewards) / len(self.moving_avg_ep_rewards)
         avg_length = sum(self.moving_avg_ep_lengths) / len(self.moving_avg_ep_lengths)
-        avg_loss = sum(self.moving_avg_ep_avg_losses) / len(self.moving_avg_ep_avg_losses)
+        self.avg_loss = sum(self.moving_avg_ep_avg_losses) / len(self.moving_avg_ep_avg_losses)
         avg_q = sum(self.moving_avg_ep_avg_qs) / len(self.moving_avg_ep_avg_qs)
 
-        return avg_reward, avg_length, avg_loss, avg_q
+        return self.avg_reward, avg_length, self.avg_loss, avg_q
     
     def load_model(self, path):
         dt = torch.load(path, map_location=torch.device(self.device))
         self.net.load_state_dict(dt["model"])
+        if self.args.load_optimizer_state == True:
+            try:
+                self.optimizer.load_state_dict(dt["optimizer"])
+                self.scheduler.load_state_dict(dt["scheduler"])
+                print("Optimizer and Scheduler states loaded successfully.")
+            except KeyError as e:
+                print(f"Error loading optimizer or scheduler state: {e} (No such key found)")
+
         self.exploration_rate = dt["exploration_rate"]
-        print(f"Loading model at {path} with exploration rate {self.exploration_rate}")
+        self.curr_step = dt.get("curr_step", 0) # Default value 0 as fallback
+        print(f"Loading step {self.curr_step}, with exploration rate {self.exploration_rate}")
     
     def save(self):
-        save_path = (f"{self.save_dir}/mario_net_step_{int(self.curr_step)}.chkpt")
+
+        save_path = f"{self.save_dir}/mario_net_step_{self.curr_step}_exp_{self.exploration_rate:.3f}_avgr_{self.avg_reward:.3f}.chkpt"
         torch.save(
-            dict(model=self.net.state_dict(), exploration_rate=self.exploration_rate),
+            dict(model=self.net.state_dict(), 
+                 optimizer=self.optimizer.state_dict(),
+                 scheduler=self.scheduler.state_dict(),
+                 exploration_rate=self.exploration_rate,
+                 curr_step=self.curr_step,
+                 avg_reward=self.avg_reward,
+                 avg_loss=self.avg_loss
+                 ),
             save_path
         )
         print(f"MarioNet saved to {save_path} at step {self.curr_step}")

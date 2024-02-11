@@ -1,6 +1,7 @@
 from gym_env import MarioGymAI
 from pyboy import PyBoy, WindowEvent
 from pyboy_gym import CustomPyBoyGym
+import console_ui as ui
 from qnet_interface import MarioAI
 import torch
 import time
@@ -16,16 +17,20 @@ import numpy as np
 import argparse
 
 # Argument Parser Setup
-parser = argparse.ArgumentParser(description="Train or Play with Mario AI", 
-                                 epilog="""PyBoy emulator controls:
+parser = argparse.ArgumentParser(description="\U0001F916 Train or Play with Mario AI", 
+                                 epilog="""\U0001F4BB To display the training progress, open Tensorboard in your browser
+                                 
+\U0001F3AE PyBoy emulator controls:
   I: Toggle screen recording (press again to stop)
   O: Take screenshot
   X: Save game state
   Z: Load game state
   P: Pause Game
   Space: Toggle Unlimited FPS on/off
-  ESC: Exit the game
-These controls allow direct interaction with the emulator during gameplay.""", 
+  ESC: Exit the game (Do not use in training mode!!!)
+These controls allow direct interaction with the emulator during gameplay.
+
+To display the training progress, open Tensorboard in your browser""", 
 formatter_class=argparse.RawTextHelpFormatter)
 
 group = parser.add_mutually_exclusive_group()
@@ -37,63 +42,19 @@ group.add_argument("--level", type=int, default=1, help="Specify the lvl to play
 parser.add_argument("-m", "--mode", choices=["train", "play"], default="train", 
                     help="Mode to run the AI: 'train' for training, 'play' to play with a trained model. (default=train)")
 
-parser.add_argument("-exp", "--exploration", type=float, default=None,
-                    help="Set a custom exploration rate for the model after loading. Useful for transfer learning.")
-
 parser.add_argument("-ls", "--load-state", action="store_true",
                     help="Load a saved game state from the default save location (gb_ROM/SuperMarioLand.gb.state).")
 
+parser.add_argument("-los", "--load-optimizer-state", action="store_true",
+                    help="Load the optimizer and scheduler state from the checkpoint.")
+
+parser.add_argument("-lrs", "--lr_scheduler", choices=["StepLR", "Cyclic"], default="StepLR",
+                    help="Select the learning rate scheduler for the Adam optimizer. (default=StepLR)")
+
+parser.add_argument("-exp", "--exploration", type=float, default=None,
+                    help="Set a custom exploration rate for the model after loading.")
+
 args = parser.parse_args()
-
-def list_available_models_and_params(save_dir):
-    if not os.path.exists(save_dir):
-        print("Checkpoint directory not found, creating a directory.")
-        os.makedirs(save_dir)
-        return []
-    
-    checkpoints = [file for file in os.listdir(save_dir) if file.endswith(".chkpt")]
-    checkpoints.sort()  # sortiert die Dateien
-    if not checkpoints:
-        print("No checkpoints available, start a new training session.")
-        return []
-
-    print("Available model versions and their parameters:")
-    for idx, model in enumerate(checkpoints, start=1):
-        checkpoint_path = os.path.join(save_dir, model)
-        try:
-            checkpoint = torch.load(checkpoint_path, map_location=torch.device('cpu'))
-            exploration_rate = checkpoint.get('exploration_rate', 'Not available')
-            print(f"{idx}: {model}, Exploration Rate: {exploration_rate}")
-        except Exception as e:
-            print(f"Could not read {model}: {e}")
-    return checkpoints
-
-def load_model_interactively(available_checkpoints, save_dir, mario):
-    if len(available_checkpoints) == 0:
-        return
-    
-    model_version = None
-    if len(available_checkpoints) > 1:
-        version_input = input("Please enter the version number to load (or press Enter to use the latest): ")
-        if version_input:
-            try:
-                model_version = int(version_input)
-                if model_version < 1 or model_version > len(available_checkpoints):
-                    raise ValueError("Invalid version number selected.")
-            except ValueError:
-                print("Invalid input. Exiting.")
-                exit()
-
-    selected_checkpoint = available_checkpoints[-1 if model_version is None else model_version - 1]
-    checkpoint_path = os.path.join(save_dir, selected_checkpoint)
-    print(f"Loading model: {selected_checkpoint}")
-    # Modell laden mit mario.load_model(checkpoint_path)
-    mario.load_model(checkpoint_path)
-
-    # Anpassen der Exploration Rate, falls spezifiziert
-    if args.exploration is not None:
-        mario.exploration_rate = args.exploration
-        print(f"Exploration Rate set to {args.exploration} for Transfer Learning.")
 
 if __name__ == '__main__':
     
@@ -145,11 +106,11 @@ if __name__ == '__main__':
     env = FrameStack(env, num_stack=frameStack)
     
     # Load AI
-    mario = MarioGymAI(state_dim=(frameStack,) + gameDimentions, action_space_dim=len(filteredActions), save_dir=save_dir)
+    mario = MarioGymAI(state_dim=(frameStack,) + gameDimentions, action_space_dim=len(filteredActions), save_dir=save_dir, args=args)
 
     # Laden der checkpoints
-    available_checkpoints = list_available_models_and_params(save_dir)
-    load_model_interactively(available_checkpoints, save_dir, mario)
+    available_checkpoints = ui.list_available_models_and_params(save_dir)
+    ui.load_model_interactively(available_checkpoints, save_dir, mario, args)
 
     # Training
     if args.mode == "train":
@@ -212,8 +173,9 @@ if __name__ == '__main__':
             writer.add_scalar("Average Loss", avg_loss, e)
             writer.add_scalar("Average Q-Value", avg_q, e)
 
-            #logger.log_episode()
-            #mario.save()
+            # save model
+            if (e % 20 == 0) or (e == episodes - 1): # save every 20 episodes and at the end
+                mario.save()
 
             #if (e % 20 == 0) or (e == episodes - 1):
             #   logger.record(episode=e, epsilon=mario.exploration_rate, step=mario.curr_step)
