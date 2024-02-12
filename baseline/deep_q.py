@@ -3,7 +3,7 @@ import torch
 
 class DDQN(nn.Module):
     """
-    mini CNN structure
+    CNN structure
     input -> (conv2d + relu) x 3 -> flatten -> (dense + relu) x 2 -> output
     """
 

@@ -46,14 +46,11 @@ class CustomPyBoyGym(PyBoyGymEnv):
 
     def set_world_level(self, world, level):
         """
-        Setzt das Spiel auf das angegebene Welt- und Level.
+        Setzt das Spiel auf angegebene Welt- und Level.
         """
-        # Stelle sicher, dass PyBoy und das Spiel bereits geladen sind
+        # Sicher stelle, dass PyBoy und das Spiel bereits geladen sind
         if not self.pyboy:
             raise ValueError("PyBoy ist nicht initialisiert oder kein Spiel geladen.")
-
-        # Umrechnung der Werte für Welt und Level in das richtige Format
-        #world_level_value = (world << 4) | level
 
         for i in range(0x450, 0x461):
             self.pyboy.override_memory_value(0, i, 0x00)
@@ -65,12 +62,6 @@ class CustomPyBoyGym(PyBoyGymEnv):
 
         for i, byte in enumerate(patch1):
             self.pyboy.override_memory_value(0, 0x451 + i, byte)
-
-        # Setze den Speicherwert für Welt und Level
-        #self.pyboy.set_memory_value(0xFFB4, world_level_value) # ADDR_WORLD_LEVEL = 0xFFB4
-
-        # Optional: Starte das Spiel neu, um die Änderung wirksam zu machen
-        # Dies hängt von deinem spezifischen Anwendungsfall ab
 
     def reset(self):
         """ Reset (or start) the gym environment throught the game_wrapper """

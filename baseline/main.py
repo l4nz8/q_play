@@ -6,14 +6,10 @@ from qnet_interface import MarioAI
 import torch
 import time
 from wrapper import SkipFrame, ResizeObservation, GrayPermuteObservation
-from gym.wrappers import FrameStack, NormalizeObservation
-
+from gym.wrappers import FrameStack
 import datetime
-import os
 #from logger import MetricLogger
 from torch.utils.tensorboard import SummaryWriter
-import numpy as np
-
 import argparse
 
 # Argument Parser Setup
@@ -75,7 +71,6 @@ if __name__ == '__main__':
     Logger
     """
     save_dir = "checkpoints"
-
     if args.mode == "train":
         now = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
         # TensorBoard writer
@@ -100,7 +95,7 @@ if __name__ == '__main__':
     # Setze Welt und Level
     world = args.world
     level = args.level
-    env.set_world_level(world, level)  # Aufruf der neuen Methode
+    env.set_world_level(world, level)
 
     # Apply wrappers on env.
     env = SkipFrame(env, skip=4)
@@ -121,47 +116,36 @@ if __name__ == '__main__':
         pyboy.set_emulation_speed(0)
         print("Training mode activated.")
         print("Total Episodes: ", episodes)
-        # Führe den Trainingsmodus aus
+        # Trainingsmodus über episoden
         for e in range(episodes):
             state, info = env.reset()
             step = 0
             episode_reward = 0
             episode_loss = []
             episode_q = []
-            #print(e)
-            #exit()
+            # Max episode time
             start = time.time()
-
             # Play the game!
             while True:
-
                 # Action based on current state
                 actionId = mario.act(state)
                 step +=1
-                #print(step)
                 action = filteredActions[actionId]
                 # Agent performs action
                 next_state, reward, done, truncated, info = env.step(action)
                 # Remember
                 mario.cache(state, next_state, actionId, reward, done)
-
                 # Learn
                 q, loss = mario.learn()
-
-                # Logging
-                #logger.log_step(reward, loss, q)
-
                 # Updating metrics
                 if loss is not None:
                     episode_loss.append(loss)
                 if q is not None:
                     episode_q.append(q)
                 episode_reward += reward
-
                 # Update state
                 state = next_state
-
-                # Check if end of game
+                # Check if end of game or time
                 if done or time.time() - start > 500:
                     break
             
@@ -176,13 +160,6 @@ if __name__ == '__main__':
             writer.add_scalar("Average Loss", avg_loss, e)
             writer.add_scalar("Average Q-Value", avg_q, e)
 
-            # save model
-            #if (e % 20 == 0) or (e == episodes - 1): # save every 20 episodes and at the end
-            #    mario.save()
-
-            #if (e % 20 == 0) or (e == episodes - 1):
-            #   logger.record(episode=e, epsilon=mario.exploration_rate, step=mario.curr_step)
-
     # Playing
     elif args.mode == "play":
         print("Play mode activated.")
@@ -193,9 +170,7 @@ if __name__ == '__main__':
             actionId = mario.act(state, train_mode=False)  # Verwende das Modell, um die Aktion zu wählen
             action = filteredActions[actionId]
             next_state, reward, done, truncated, info = env.step(action)
-
             total_reward += reward
-            
             # Update state
             state = next_state
             if done:

@@ -21,7 +21,7 @@ class GameState():
 
 class MarioAI():
 	def __init__(self):
-		self.realMax = [] #[[1,1, 2500], [1,1, 200]]		
+		self.realMax = [] #[[1,1, 2500], [1,1, 200]]
 
 	def GetReward(self, prevGameState: GameState, pyboy):
 		"""
@@ -56,7 +56,6 @@ class MarioAI():
 					r = True
 					break # leave loop
 			
-			
 			if r == False: # this means this level does not exist
 				self.realMax.append([current_mario.world[0], current_mario.world[1], current_mario._level_progress_max])
 			
@@ -72,7 +71,8 @@ class MarioAI():
 
 	def GetActions(self):
 		baseActions = [WindowEvent.PRESS_ARROW_RIGHT,
-						WindowEvent.PRESS_BUTTON_A, WindowEvent.PRESS_ARROW_LEFT]
+						WindowEvent.PRESS_BUTTON_A, 
+						WindowEvent.PRESS_ARROW_LEFT]
 
 		totalActionsWithRepeats = list(itertools.permutations(baseActions, 2))
 		withoutRepeats = []

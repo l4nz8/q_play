@@ -72,7 +72,7 @@ class MarioGymAI():
                 action_values = self.net(state, model="online")
             action_idx = torch.argmax(action_values, axis=1).item()
         else:
-            # Im Trainingsmodus: Bestehende Logik für Exploration und Exploitation
+            # Im Trainingsmodus: Logik für Exploration und Exploitation
             # EXPLORE
             if (np.random.rand() < self.exploration_rate):
                 action_idx = np.random.randint(0, self.action_space_dim)
@@ -128,7 +128,7 @@ class MarioGymAI():
         current_Q = model_output[np.arange(0, self.batch_size), action]  # Q_online(s,a)
         return current_Q
 
-    @torch.no_grad() # Disable gradient calculations here (because we don’t need to backpropagate "target")
+    @torch.no_grad() # Disable gradient calculations here (because no need to backpropagate "target")
     def td_target(self, reward, next_state, done):
         next_state_Q = self.net(next_state, model="online")
         best_action = torch.argmax(next_state_Q, axis=1)
@@ -179,13 +179,6 @@ class MarioGymAI():
 
         # Backpropagate loss through Q_online
         loss = self.update_Q_online(td_est, td_tgt)
-        #total_loss += loss
-        #cnt += 1
-        #print(f"step:{self.curr_step}")
-        #if cnt == 200:
-            #print(total_loss / cnt)
-            #total_loss = 0
-            #cnt = 0
 
         return (td_est.mean().item(), loss)
     

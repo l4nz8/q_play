@@ -1,4 +1,3 @@
-from torchvision import transforms as T
 from skimage import transform
 import gym
 import numpy as np
