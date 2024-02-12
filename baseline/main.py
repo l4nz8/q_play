@@ -42,6 +42,9 @@ group.add_argument("--level", type=int, default=1, help="Specify the lvl to play
 parser.add_argument("-m", "--mode", choices=["train", "play"], default="train", 
                     help="Mode to run the AI: 'train' for training, 'play' to play with a trained model. (default=train)")
 
+parser.add_argument("--headless", action="store_true",
+                    help="Activates headless mode to run the emulator without rendering the game screen, which can increase the speed of training.")
+
 parser.add_argument("-ls", "--load-state", action="store_true",
                     help="Load a saved game state from the default save location (gb_ROM/SuperMarioLand.gb.state).")
 
@@ -64,7 +67,7 @@ if __name__ == '__main__':
     episodes = 40000 
     frameStack = 4
     gameDimentions = (84, 84)
-    quiet = False
+    quiet = args.headless
     action_types = ["press", "toggle", "all"]
     observation_types = ["raw", "tiles", "compressed", "minimal"]
 
@@ -125,7 +128,7 @@ if __name__ == '__main__':
             episode_reward = 0
             episode_loss = []
             episode_q = []
-            print(e)
+            #print(e)
             #exit()
             start = time.time()
 
@@ -174,8 +177,8 @@ if __name__ == '__main__':
             writer.add_scalar("Average Q-Value", avg_q, e)
 
             # save model
-            if (e % 20 == 0) or (e == episodes - 1): # save every 20 episodes and at the end
-                mario.save()
+            #if (e % 20 == 0) or (e == episodes - 1): # save every 20 episodes and at the end
+            #    mario.save()
 
             #if (e % 20 == 0) or (e == episodes - 1):
             #   logger.record(episode=e, epsilon=mario.exploration_rate, step=mario.curr_step)

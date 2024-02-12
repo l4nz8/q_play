@@ -1,4 +1,5 @@
 import torch
+from tqdm import tqdm
 import numpy as np
 from deep_q import DDQN
 
@@ -28,7 +29,8 @@ class MarioGymAI():
         # Memory
         self.memory = TensorDictReplayBuffer(storage=LazyMemmapStorage(100000, device=torch.device("cpu")))
         self.batch_size = 32
-        #self.save_every = 1e4
+        self.save_every = int(1e5)
+        self.pbar = tqdm(total=self.save_every,desc="Saving Progress", colour="#FF0000")
 
         # Q learning
         self.gamma = 0.9
@@ -149,12 +151,16 @@ class MarioGymAI():
     def learn(self):
         global total_loss, cnt
         """Update online action value (Q) function with a batch of experiences"""
+        self.pbar.set_postfix_str("\U0001F4BE ")
+        self.pbar.update(1)
         if self.curr_step % self.sync_every == 0:
             self.sync_Q_target()
 
         # Save every end of sequence
-        #if self.curr_step % self.save_every == 0:
-        #    self.save()
+        if self.curr_step % self.save_every == 0:
+            self.save()
+            self.pbar.reset()
+            self.pbar.total = self.save_every
 
         if self.curr_step < self.burnin:
             return None, None
@@ -196,11 +202,11 @@ class MarioGymAI():
             self.moving_avg_ep_avg_qs.pop(0)
 
         self.avg_reward = sum(self.moving_avg_ep_rewards) / len(self.moving_avg_ep_rewards)
-        avg_length = sum(self.moving_avg_ep_lengths) / len(self.moving_avg_ep_lengths)
+        self.avg_length = sum(self.moving_avg_ep_lengths) / len(self.moving_avg_ep_lengths)
         self.avg_loss = sum(self.moving_avg_ep_avg_losses) / len(self.moving_avg_ep_avg_losses)
-        avg_q = sum(self.moving_avg_ep_avg_qs) / len(self.moving_avg_ep_avg_qs)
+        self.avg_q = sum(self.moving_avg_ep_avg_qs) / len(self.moving_avg_ep_avg_qs)
 
-        return self.avg_reward, avg_length, self.avg_loss, avg_q
+        return self.avg_reward, self.avg_length, self.avg_loss, self.avg_q
     
     def load_model(self, path):
         dt = torch.load(path, map_location=torch.device(self.device))
