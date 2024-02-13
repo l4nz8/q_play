@@ -1,28 +1,27 @@
 ![GitHub](https://img.shields.io/github/license/l4nz8/q_play)
 ![Last Commit](https://img.shields.io/github/last-commit/l4nz8/q_play.svg)
-![Build Status](https://img.shields.io/travis/com/l4nz8/q_play/main.svg)
-![Flake8 Lint Status](https://github.com/l4nz8/q_play/workflows/Lint%20Code%20Base/badge.svg)
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/l4nz8/q_play/main.yml)
 ![Python Version](https://img.shields.io/badge/python-3.10-blue.svg)
 
 # Train RL Mario AGENT
 This project implements a Reinforcement Learning (RL) agent that plays "Super Mario Land" using a Double Deep Q-Network (DDQN). It's built on the PyBoy Game Boy emulator, providing a custom environment for the Mario AI to interact with and learn from. The agent is designed to navigate through the levels of "Super Mario Land," making decisions based on the current state of the game to maximize its reward score and progress.
 
-## Overview
+## Overview:
 The MARIO-PLAYING RL AGENT uses a DDQN model for decision-making and operates within a custom gym environment tailored around "Super Mario Land". The agent's goal is to learn optimal strategies for navigating the game's levels, overcoming obstacles, and maximizing scores through trial and error.
 
-## Features
+### Features
 - **Double Deep Q-Network:** Utilizes a DDQN architecture for stable and efficient learning.
 - **Custom Gym Environment:** Integrates with PyBoy to create a tailored environment for Super Mario Land.
 - **Flexible Training Modes:** Supports both training and playing modes for the AI agent.
 - **Headless Training:** Offers a headless mode for faster training without rendering the game screen.
 - **Customizable Hyperparameters:** Allows tweaking of learning rates, exploration rates, and more.
 
-## Getting Started
+## Getting Started:
 
 🐍 Python 3.10 is recommended. Other versions may work but have not been tested.
 - It is also recommended to use cuda for training, which you must install manually for your individual GPU.
 
-### ✨ Download and install:
+### Download and install ✨
 1. Clone the repository to your local machine:
 ```bash
 git clone https://github.com/l4nz8/q_play.git
@@ -38,31 +37,33 @@ Note: The SuperMarioLand.gb file MUST be in the `gb_ROM/` directory and your cur
 
 ## Run Emulator and AI:
 
-### 🎮 Run AI agent
+### Run AI agent 🎮
 
 The script must be started from the root directory `q_play/` in the terminal.
 ```bash
 python baseline/main.py -h
 ```
-The project contains several argparse start conditions, which are described in more detail with the `-h` help argument after the initialization of the script.
+The project contains several argparse start conditions, which are described in more detail with the `-h` help argument after the initialization of the script.  
+
 ```usage: main.py [-h] [--world WORLD | --level LEVEL] [-m {train,play}] [--headless] [-ls] [-los] [-lrs {StepLR,Cyclic}] [-exp EXPLORATION] [--debug]```
 
-Note: 
+Note:  
 - If the script is started without start conditions, the training mode `-m train` is automatically executed with default settings.
 - To start a new training session, make sure that there is no `checkpoints/` folder or `.chkpt` file in the folder.
 - If there are several models in the `checkpoints/` folder, you will be asked which model should be used to train/play with, depending on which `-m` the script was executed in.
 
-### 📈 Tracking Training Progress: 
+### Tracking Training Progress 📈
 
 To monitor the logged metrics you neet to run Tensorboard from to root directory `q_play/` and have it aktive in the terminal.
 ```bash
 tensorboard --logdir=runs
 ```
-Access the dashboard through `http://localhost:6006/` in your web browser (safari is not supported).
+Access the dashboard through `http://localhost:6006/` in your web browser (safari is not supported).  
+All runs are saved in the `runs/` directory.  
 
 Note: Refreshing the training progress must be done manually in tensorboard.
 
-### 🏋️ Pre-Traind model:
+### Pre-Traind model 🏋️
 
 To use a pre-trained model, download the `checkpoints/` folder from the google.docs link below and paste it into the `q_play/` root directory.
 
