@@ -15,7 +15,6 @@ The MARIO-PLAYING RL AGENT uses a DDQN model for decision-making and operates wi
 ## Installation
 🐍 Python 3.10 is recommended. Other versions may work but have not been tested.
 
-You also need to install Tensorboard and have it aktive in the terminal to monitor the logged metrics.
 It also is recommended to use cuda for training, which you must install manually for your individual GPU.
 
 Download and install:
@@ -30,16 +29,46 @@ pip3 install -r requirements.txt
 ```
 3. Copy your legally obtained Super Mario Land ROM into the gb_ROM/ directory. You can find this using google, it should be 66KB in size. Rename it to `SuperMarioLand.gb` if it is not already. The sha1 sum should be `418203621b887caa090215d97e3f509b79affd3e`, which you can verify by running `shasum SuperMarioLand.gb` inside the terminal. 
 
-Note: the SuperMarioLand.gb file MUST be in the `gb_ROM/` directory and your current directory MUST be the `q_play/` directory (main) in order for this to work.
+Note: the SuperMarioLand.gb file MUST be in the `gb_ROM/` directory and your current directory MUST be the `q_play/` root directory in order for this to work.
 
-## Run Emulator and AI
+## Run Emulator and AI:
 
-🎮 Run it in the terminal to get help
+### 🎮 Run AI 
+
+The script must be started from the root directory `q_play/` in the terminal.
 ```bash
 python baseline/main.py -h
 ```
+The project includes argparse to select start conditions, which are described in more detail with the help of `-h` after initialization of the script.
+```usage: main.py [-h] [--world WORLD | --level LEVEL] [-m {train,play}] [--headless] [-ls] [-los] [-lrs {StepLR,Cyclic}] [-exp EXPLORATION] [--debug]```
 
-# Based on
-DDQN - https://arxiv.org/abs/1509.06461
+If the script is started without start conditions, the training mode `-m train` is automatically executed with default settings.
 
-PyTorch RL Super Mario Bros Example - https://pytorch.org/tutorials/intermediate/mario_rl_tutorial.html
+### 📈 Tracking Training Progress: 
+
+To monitor the logged metrics you neet to run Tensorboard from to root directory `q_play/` and have it aktive in the terminal.
+```bash
+tensorboard --logdir=runs
+```
+To view tensorboard you have to open `http://localhost:6006/` in your browser (safari is not supported)
+
+Note: updating the progress must be done manually in tensorboard
+
+### 🏋️ Pre-Traind model:
+
+To use a pre-trained model, download the `checkpoints/` folder from the google.docs link below and paste it into the `q_play/` root directory.
+
+**[checkpoints/](https://drive.google.com/drive/folders/1_vqTBNQzlyZl7kOxnsa1q9clRLtB_jYo?usp=sharing)**
+
+the same with the logged metrics
+
+**[runs/](https://drive.google.com/drive/folders/14unJWiTpiiosiZAdMJgtgAOWTQpkiza2?usp=sharing)**
+
+## Based on
+### [DDQN](https://arxiv.org/abs/1509.06461)
+
+### [PyTorch RL Super Mario Bros Example](https://pytorch.org/tutorials/intermediate/mario_rl_tutorial.html)
+
+<a href="https://github.com/Baekalfen/PyBoy">
+  <img src="/assets/pyboy.svg" height="64">
+</a>
