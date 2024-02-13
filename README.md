@@ -1,5 +1,10 @@
 ![GitHub](https://img.shields.io/github/license/l4nz8/q_play)
-# q_play
+![Last Commit](https://img.shields.io/github/last-commit/l4nz8/q_play.svg)
+![Build Status](https://img.shields.io/travis/com/l4nz8/q_play/main.svg)
+![Flake8 Lint Status](https://github.com/l4nz8/q_play/workflows/Lint%20Code%20Base/badge.svg)
+![Python Version](https://img.shields.io/badge/python-3.10-blue.svg)
+
+# Train RL Mario AGENT
 This project implements a Reinforcement Learning (RL) agent that plays "Super Mario Land" using a Double Deep Q-Network (DDQN). It's built on the PyBoy Game Boy emulator, providing a custom environment for the Mario AI to interact with and learn from. The agent is designed to navigate through the levels of "Super Mario Land," making decisions based on the current state of the game to maximize its reward score and progress.
 
 ## Overview
@@ -12,12 +17,12 @@ The MARIO-PLAYING RL AGENT uses a DDQN model for decision-making and operates wi
 - **Headless Training:** Offers a headless mode for faster training without rendering the game screen.
 - **Customizable Hyperparameters:** Allows tweaking of learning rates, exploration rates, and more.
 
-## Installation
+## Getting Started
+
 🐍 Python 3.10 is recommended. Other versions may work but have not been tested.
+- It is also recommended to use cuda for training, which you must install manually for your individual GPU.
 
-It also is recommended to use cuda for training, which you must install manually for your individual GPU.
-
-Download and install:
+### ✨ Download and install:
 1. Clone the repository to your local machine:
 ```bash
 git clone https://github.com/l4nz8/q_play.git
@@ -29,20 +34,23 @@ pip3 install -r requirements.txt
 ```
 3. Copy your legally obtained Super Mario Land ROM into the gb_ROM/ directory. You can find this using google, it should be 66KB in size. Rename it to `SuperMarioLand.gb` if it is not already. The sha1 sum should be `418203621b887caa090215d97e3f509b79affd3e`, which you can verify by running `shasum SuperMarioLand.gb` inside the terminal. 
 
-Note: the SuperMarioLand.gb file MUST be in the `gb_ROM/` directory and your current directory MUST be the `q_play/` root directory in order for this to work.
+Note: The SuperMarioLand.gb file MUST be in the `gb_ROM/` directory and your current directory MUST be the `q_play/` root directory in order for this to work.
 
 ## Run Emulator and AI:
 
-### 🎮 Run AI 
+### 🎮 Run AI agent
 
 The script must be started from the root directory `q_play/` in the terminal.
 ```bash
 python baseline/main.py -h
 ```
-The project includes argparse to select start conditions, which are described in more detail with the help of `-h` after initialization of the script.
+The project contains several argparse start conditions, which are described in more detail with the `-h` help argument after the initialization of the script.
 ```usage: main.py [-h] [--world WORLD | --level LEVEL] [-m {train,play}] [--headless] [-ls] [-los] [-lrs {StepLR,Cyclic}] [-exp EXPLORATION] [--debug]```
 
-If the script is started without start conditions, the training mode `-m train` is automatically executed with default settings.
+Note: 
+- If the script is started without start conditions, the training mode `-m train` is automatically executed with default settings.
+- To start a new training session, make sure that there is no `checkpoints/` folder or `.chkpt` file in the folder.
+- If there are several models in the `checkpoints/` folder, you will be asked which model should be used to train/play with, depending on which `-m` the script was executed in.
 
 ### 📈 Tracking Training Progress: 
 
@@ -50,9 +58,9 @@ To monitor the logged metrics you neet to run Tensorboard from to root directory
 ```bash
 tensorboard --logdir=runs
 ```
-To view tensorboard you have to open `http://localhost:6006/` in your browser (safari is not supported)
+Access the dashboard through `http://localhost:6006/` in your web browser (safari is not supported).
 
-Note: updating the progress must be done manually in tensorboard
+Note: Refreshing the training progress must be done manually in tensorboard.
 
 ### 🏋️ Pre-Traind model:
 
@@ -60,11 +68,11 @@ To use a pre-trained model, download the `checkpoints/` folder from the google.d
 
 **[checkpoints/](https://drive.google.com/drive/folders/1_vqTBNQzlyZl7kOxnsa1q9clRLtB_jYo?usp=sharing)**
 
-the same with the logged metrics
+The same with the logged metrics.
 
 **[runs/](https://drive.google.com/drive/folders/14unJWiTpiiosiZAdMJgtgAOWTQpkiza2?usp=sharing)**
 
-## Based on
+## Based on:
 ### [DDQN](https://arxiv.org/abs/1509.06461)
 
 ### [PyTorch RL Super Mario Bros Example](https://pytorch.org/tutorials/intermediate/mario_rl_tutorial.html)
