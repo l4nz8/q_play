@@ -1,9 +1,12 @@
 # Folder / files
 *.gb
+*.gb.state
+*.chkpt
 *.ram
 *.zip
 *.csv
 test.py
+test.ipynb
 .vscode/
 data/
 

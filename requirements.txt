@@ -1,2 +1,7 @@
-gymnasium
 pyboy
+torch
+gym
+scikit-image
+tensordict
+torchrl
+numpy
