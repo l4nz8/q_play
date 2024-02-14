@@ -49,10 +49,10 @@ def list_available_models_and_params(save_dir):
             curr_step = checkpoint.get("curr_step", "NaN")
             avg_reward = checkpoint.get("avg_reward", 0)
             loss_log = checkpoint.get("avg_loss", 0)
-            print(f"{idx}: {model[:9]} Step: {curr_step} \
-                    | Exploration Rate: {exploration_rate:.4f} \
-                    | avg_reward: {avg_reward:.4f} \
-                    | avg_loss: {loss_log:.4f}")
+            print(f"{idx}: {model[:9]} Step: {curr_step} "
+                  f"| Exploration Rate: {exploration_rate:.4f} "
+                  f"| avg_reward: {avg_reward:.4f} " 
+                  f"| avg_loss: {loss_log:.4f}")
         except Exception as e:
             print(f"Could not read {model}: {e}")
     return checkpoints
