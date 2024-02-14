@@ -60,8 +60,10 @@ args = parser.parse_args()
 
 if __name__ == '__main__':
     
+    print("\nMARIO DRL-AGENT (Double Deep Q-Network | Emulator: PyBoy | Game: Super Mario Land):\
+          \n\nINFO\tInitialize project...")
     use_cuda = torch.cuda.is_available() # Check for CUDA (GPU) availability for PyTorch
-    print(f"Using CUDA: {use_cuda}\n")
+    print(f"Using CUDA: {use_cuda}")
     episodes = 40000 
     frameStack = 4
     gameDimentions = (84, 84)
@@ -185,5 +187,6 @@ if __name__ == '__main__':
 
     # Cleanup resources
     env.close()
-    writer.close()
+    if args.mode == "train":
+        writer.close()
     exit() # Terminate script

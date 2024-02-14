@@ -30,7 +30,8 @@ class MarioGymAI():
         self.memory = TensorDictReplayBuffer(storage=LazyMemmapStorage(100000, device=torch.device("cpu")))
         self.batch_size = 32
         self.save_every = int(1e5)
-        self.pbar = tqdm(total=self.save_every,desc="Saving Progress", colour="#FF0000")
+        if args.mode == "train":
+            self.pbar = tqdm(total=self.save_every,desc="Saving Progress", colour="#FF0000")
 
         # Q learning hyperparameters
         self.gamma = 0.9
