@@ -6,6 +6,21 @@
 # Train RL Mario AGENT
 This project implements a Reinforcement Learning (RL) agent that plays "Super Mario Land" using a Double Deep Q-Network (DDQN). It's built on the PyBoy Game Boy emulator, providing a custom environment for the Mario AI to interact with and learn from. The agent is designed to navigate through the levels of "Super Mario Land," making decisions based on the current state of the game to maximize its reward score and progress.
 
+<table>
+  <tbody>
+    <tr>
+      <td align="center">
+        <img src="assets/SUPER_MARIOLAN_72h_RL_agent.gif" width="300"><br>
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <strong>72h trained model</strong>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
 ## Overview:
 The MARIO-PLAYING RL AGENT uses a DDQN model for decision-making and operates within a custom gym environment tailored around "Super Mario Land". The agent's goal is to learn optimal strategies for navigating the game's levels, overcoming obstacles, and maximizing scores through trial and error.
 
