@@ -93,6 +93,8 @@ The same with the logged metrics.
 ### Documentation 🍰
 If you want to know more about the project read the documentation:  
 
+**[Documentation: (English)](https://docs.google.com/document/d/15uUgVP8PJc9lO-45dp5YI16WE9ySOaVecNvU2sPuxXs/edit?usp=sharing)**
+
 **[Documentation: (German)](https://docs.google.com/document/d/171trtRc4DkKr2gHy8AyJ_wlJQH4CMmkPqxXyICp6Mqw/edit?usp=sharing)**
 
 ## Based on:
