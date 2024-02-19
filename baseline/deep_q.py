@@ -67,13 +67,16 @@ class DDQN(nn.Module):
         # Define the CNN architecture
         return nn.Sequential(
             nn.Conv2d(in_channels=c, out_channels=32, kernel_size=8, stride=4, dtype=torch.float32),
-            nn.ReLU(),
+            nn.BatchNorm2d(32), # Mitigate the problem of internal covariate shift
+            nn.LeakyReLU(), # Avoid the issue of "dead neurons"
             nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2, dtype=torch.float32),
-            nn.ReLU(),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(),
             nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, dtype=torch.float32),
-            nn.ReLU(),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(),
             nn.Flatten(), # Flatten the output for the fully connected layers
             nn.Linear(3136, 512, dtype=torch.float32), # 3136 = number of features from the last conv layer
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Linear(512, output_dim, dtype=torch.float32) # Output layer
         )
