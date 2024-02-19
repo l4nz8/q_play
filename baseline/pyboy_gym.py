@@ -1,8 +1,17 @@
 from pyboy.openai_gym import PyBoyGymEnv
 from qnet_interface import MarioAI
 
+
 class CustomPyBoyGym(PyBoyGymEnv):
-    def __init__(self, pyboy, observation_type="tiles", action_type="toggle", simultaneous_actions=False, load_initial_state=False,**kwargs):
+    def __init__(
+        self,
+        pyboy,
+        observation_type="tiles",
+        action_type="toggle",
+        simultaneous_actions=False,
+        load_initial_state=False,
+        **kwargs
+    ):
         """
         Extends the PyBoyGymEnv for custom behavior with Super Mario Land
 
@@ -13,10 +22,14 @@ class CustomPyBoyGym(PyBoyGymEnv):
         - simultaneous_actions: If True, allows simultaneous button presses
         - load_initial_state: If True, loads the game from a predefined state
         """
-        super().__init__(pyboy, observation_type, action_type, simultaneous_actions, **kwargs)
-    
-        self.load_initial_state=load_initial_state
-        self.state_file = "gb_ROM/SuperMarioLand.gb.state" # Path to the game state file
+        super().__init__(
+            pyboy, observation_type, action_type, simultaneous_actions, **kwargs
+        )
+
+        self.load_initial_state = load_initial_state
+        self.state_file = (
+            "gb_ROM/SuperMarioLand.gb.state"  # Path to the game state file
+        )
 
     def step(self, list_actions):
         """
@@ -39,7 +52,11 @@ class CustomPyBoyGym(PyBoyGymEnv):
             pyboy_done = self.pyboy.tick()
         else:
             # Release buttons not pressed in the current step but were pressed before
-            for pressedFromBefore in [pressed for pressed in self._button_is_pressed if self._button_is_pressed[pressed] == True]: # get all buttons currently pressed
+            for pressedFromBefore in [
+                pressed
+                for pressed in self._button_is_pressed
+                if self._button_is_pressed[pressed] == True
+            ]:  # get all buttons currently pressed
                 if pressedFromBefore not in list_actions:
                     release = self._release_button[pressedFromBefore]
                     self.pyboy.send_input(release)
@@ -48,7 +65,9 @@ class CustomPyBoyGym(PyBoyGymEnv):
             # Press new buttons
             for buttonToPress in list_actions:
                 self.pyboy.send_input(buttonToPress)
-                self._button_is_pressed[buttonToPress] = True # update status of the button
+                self._button_is_pressed[
+                    buttonToPress
+                ] = True  # update status of the button
 
             pyboy_done = self.pyboy.tick()
 
@@ -84,16 +103,16 @@ class CustomPyBoyGym(PyBoyGymEnv):
             self.pyboy.override_memory_value(0, i, 0x00)
 
         patch1 = [
-            0x3E, # LD A, d8
-            (world << 4) | (level & 0x0F), # d8
-            ]
+            0x3E,  # LD A, d8
+            (world << 4) | (level & 0x0F),  # d8
+        ]
         for i, byte in enumerate(patch1):
             self.pyboy.override_memory_value(0, 0x451 + i, byte)
 
     def reset(self):
         """
         Resets or starts the gym environment through the game wrapper
-        
+
         Returns:
         - The initial observation after resetting
         """
@@ -109,8 +128,14 @@ class CustomPyBoyGym(PyBoyGymEnv):
                 self.pyboy.load_state(f)
 
         # Ensure all buttons are released at the start
-        for pressedFromBefore in [pressed for pressed in self._button_is_pressed if self._button_is_pressed[pressed] == True]: # Get all buttons currently pressed
+        for pressedFromBefore in [
+            pressed
+            for pressed in self._button_is_pressed
+            if self._button_is_pressed[pressed] == True
+        ]:  # Get all buttons currently pressed
             self.pyboy.send_input(self._release_button[pressedFromBefore])
-        self.button_is_pressed = {button: False for button in self._buttons} # Reset all buttons
+        self.button_is_pressed = {
+            button: False for button in self._buttons
+        }  # Reset all buttons
 
         return self._get_observation(), None

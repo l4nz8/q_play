@@ -6,16 +6,18 @@ from deep_q import DDQN
 from tensordict import TensorDict
 from torchrl.data import TensorDictReplayBuffer, LazyMemmapStorage
 
-class MarioGymAI():
 
+class MarioGymAI:
     def __init__(self, state_dim, action_space_dim, save_dir, args):
         super().__init__()
-        self.device = "cuda" if torch.cuda.is_available() else "cpu" # Determine GPU or CPU for training
-        self.state_dim = state_dim # Dimensions of the input state to the network
-        self.action_space_dim = action_space_dim # Number of possible actions
-        self.save_dir = save_dir # Checkpoints Directory
-        self.args = args # Command-line arguments
-    
+        self.device = (
+            "cuda" if torch.cuda.is_available() else "cpu"
+        )  # Determine GPU or CPU for training
+        self.state_dim = state_dim  # Dimensions of the input state to the network
+        self.action_space_dim = action_space_dim  # Number of possible actions
+        self.save_dir = save_dir  # Checkpoints Directory
+        self.args = args  # Command-line arguments
+
         # DDQN algorithm (uses two ConvNets - online and target that independently approximate the optimal action-value function)
         self.net = DDQN(self.state_dim, self.action_space_dim).float()
         self.net = self.net.to(device=self.device)
@@ -27,26 +29,39 @@ class MarioGymAI():
         self.curr_step = 0
 
         # Memory
-        self.memory = TensorDictReplayBuffer(storage=LazyMemmapStorage(100000, device=torch.device("cpu")))
+        self.memory = TensorDictReplayBuffer(
+            storage=LazyMemmapStorage(100000, device=torch.device("cpu"))
+        )
         self.batch_size = 32
         self.save_every = int(1e5)
         if args.mode == "train":
-            self.pbar = tqdm(total=self.save_every,desc="Saving Progress", colour="#FF0000")
+            self.pbar = tqdm(
+                total=self.save_every, desc="Saving Progress", colour="#FF0000"
+            )
 
         # Q learning hyperparameters
         self.gamma = 0.9
-        self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.00025) # Optimizer
+        self.optimizer = torch.optim.Adam(
+            self.net.parameters(), lr=0.00025
+        )  # Optimizer
         # Learning rate scheduler setup
         if self.args.lr_scheduler == "StepLR":
-            self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=self.exploration_rate_decay)
+            self.scheduler = torch.optim.lr_scheduler.ExponentialLR(
+                self.optimizer, gamma=self.exploration_rate_decay
+            )
             print(f"scheduler set to {self.args.lr_scheduler}")
         elif self.args.lr_scheduler == "Cyclic":
-            self.scheduler = torch.optim.lr_scheduler.CyclicLR(self.optimizer, 
-                                                               base_lr=0.0001, max_lr=0.001, step_size_up=2000, 
-                                                               mode='triangular', cycle_momentum=False)
+            self.scheduler = torch.optim.lr_scheduler.CyclicLR(
+                self.optimizer,
+                base_lr=0.0001,
+                max_lr=0.001,
+                step_size_up=2000,
+                mode="triangular",
+                cycle_momentum=False,
+            )
             print(f"scheduler set to {self.args.lr_scheduler}")
 
-        self.loss_fn = torch.nn.SmoothL1Loss() # Loss function
+        self.loss_fn = torch.nn.SmoothL1Loss()  # Loss function
         self.burnin = 1e4  # min. experiences before training
         self.learn_every = 3  # no. of experiences between updates to Q_online
         self.sync_every = 1e4  # no. of experiences between Q_target & Q_online sync
@@ -71,30 +86,36 @@ class MarioGymAI():
         if not train_mode:
             # Play mode: Select action with highest predicted Q-value (exploitation)
             state = np.array(state, dtype=np.float32)
-            state = torch.tensor(state, device=self.device).unsqueeze(0) # Convert state to tensor for model input
+            state = torch.tensor(state, device=self.device).unsqueeze(
+                0
+            )  # Convert state to tensor for model input
             with torch.no_grad():  # Disable gradient computation for inference
-                action_values = self.net(state, model="online") # Model get action
+                action_values = self.net(state, model="online")  # Model get action
             action_idx = torch.argmax(action_values, axis=1).item()
         else:
             # Training mode: Use epsilon-greedy policy for exploration-exploitation trade-off
             # EXPLORE - Randomly select any action
-            if (np.random.rand() < self.exploration_rate):
+            if np.random.rand() < self.exploration_rate:
                 action_idx = np.random.randint(0, self.action_space_dim)
             # EXPLOIT - Select action with highest predicted Q-value
             else:
                 state = np.array(state, dtype=np.float32)
-                state = torch.tensor(state, device=self.device).unsqueeze(0) # Convert state to tensor for model input
-                action_values = self.net(state, model="online") # Model get action
+                state = torch.tensor(state, device=self.device).unsqueeze(
+                    0
+                )  # Convert state to tensor for model input
+                action_values = self.net(state, model="online")  # Model get action
                 action_idx = torch.argmax(action_values, axis=1).item()
 
             # Decay exploration rate to gradually reduce random actions
             self.exploration_rate *= self.exploration_rate_decay
-            self.exploration_rate = max(self.exploration_rate_min, self.exploration_rate)
+            self.exploration_rate = max(
+                self.exploration_rate_min, self.exploration_rate
+            )
 
         # increment step, used for tracking within episode
         self.curr_step += 1
         return action_idx
-    
+
     def cache(self, state, next_state, action, reward, done):
         """
         Store the experience to self.memory (replay buffer)
@@ -117,13 +138,18 @@ class MarioGymAI():
         done = torch.tensor([done], device=self.device)
 
         # Add the experience to the memory
-        self.memory.add(TensorDict({
-            "state": state, 
-            "next_state": next_state, 
-            "action": action, 
-            "reward": reward, 
-            "done": done
-            }, batch_size=[]))
+        self.memory.add(
+            TensorDict(
+                {
+                    "state": state,
+                    "next_state": next_state,
+                    "action": action,
+                    "reward": reward,
+                    "done": done,
+                },
+                batch_size=[],
+            )
+        )
 
     def recall(self):
         """
@@ -135,9 +161,12 @@ class MarioGymAI():
         # Sample a batch from memory and move it to the current device
         batch = self.memory.sample(self.batch_size).to(self.device)
         # Extract tensors for each component of the experience
-        state, next_state, action, reward, done = (batch.get(key) for key in("state", "next_state", "action", "reward", "done"))
+        state, next_state, action, reward, done = (
+            batch.get(key)
+            for key in ("state", "next_state", "action", "reward", "done")
+        )
         return state, next_state, action.squeeze(), reward.squeeze(), done.squeeze()
-    
+
     def td_estimate(self, state, action):
         """
         Calculates the Temporal Difference (TD) estimate
@@ -152,10 +181,12 @@ class MarioGymAI():
         # Get Q values for all actions in given states
         model_output = self.net(state, model="online")
         # Select the Q value for the taken action
-        current_Q = model_output[np.arange(0, self.batch_size), action]  # Q_online(sate,action)
+        current_Q = model_output[
+            np.arange(0, self.batch_size), action
+        ]  # Q_online(sate,action)
         return current_Q
 
-    @torch.no_grad() # Disable gradient calculations (because no need to backpropagate "target")
+    @torch.no_grad()  # Disable gradient calculations (because no need to backpropagate "target")
     def td_target(self, reward, next_state, done):
         """
         Calculates the TD target for updating the Q value
@@ -172,10 +203,12 @@ class MarioGymAI():
         next_state_Q = self.net(next_state, model="online")
         best_action = torch.argmax(next_state_Q, axis=1)
         # Calculate target Q value with the target model
-        next_Q = self.net(next_state, model="target")[np.arange(0, self.batch_size), best_action]
+        next_Q = self.net(next_state, model="target")[
+            np.arange(0, self.batch_size), best_action
+        ]
         # Apply the Bellman equation
         return (reward + (1 - done.float()) * self.gamma * next_Q).float()
-    
+
     def update_Q_online(self, td_estimate, td_target):
         """
         Updates the online Q network based on the TD estimate and TD target
@@ -195,7 +228,7 @@ class MarioGymAI():
         # Update online network parameters
         self.optimizer.step()
         self.scheduler.step()
-        
+
         return loss.item()
 
     def sync_Q_target(self):
@@ -223,7 +256,7 @@ class MarioGymAI():
 
         # Check if enough steps have been taken to start learning
         if self.curr_step < self.burnin:
-            return None, None # Not enough data to learn yet
+            return None, None  # Not enough data to learn yet
 
         # Only learn at specified intervals
         if self.curr_step % self.learn_every != 0:
@@ -240,7 +273,7 @@ class MarioGymAI():
         # Backpropagate the online Q-network and return the average Q-value and the loss
         loss = self.update_Q_online(td_est, td_tgt)
         return (td_est.mean().item(), loss)
-    
+
     def update_moving_averages(self, reward, length, loss, q_value):
         """Updates moving averages of rewards, lengths, losses, and Q-values."""
         # Append recent episode metrics to their respective lists
@@ -257,13 +290,19 @@ class MarioGymAI():
             self.moving_avg_ep_avg_qs.pop(0)
 
         # Calculate the moving averages
-        self.avg_reward = sum(self.moving_avg_ep_rewards) / len(self.moving_avg_ep_rewards)
-        self.avg_length = sum(self.moving_avg_ep_lengths) / len(self.moving_avg_ep_lengths)
-        self.avg_loss = sum(self.moving_avg_ep_avg_losses) / len(self.moving_avg_ep_avg_losses)
+        self.avg_reward = sum(self.moving_avg_ep_rewards) / len(
+            self.moving_avg_ep_rewards
+        )
+        self.avg_length = sum(self.moving_avg_ep_lengths) / len(
+            self.moving_avg_ep_lengths
+        )
+        self.avg_loss = sum(self.moving_avg_ep_avg_losses) / len(
+            self.moving_avg_ep_avg_losses
+        )
         self.avg_q = sum(self.moving_avg_ep_avg_qs) / len(self.moving_avg_ep_avg_qs)
 
         return self.avg_reward, self.avg_length, self.avg_loss, self.avg_q
-    
+
     def load_model(self, path):
         """Load model with its optimizer, scheduler, and other parameters."""
         # Load the checkpoint
@@ -277,27 +316,32 @@ class MarioGymAI():
                 self.scheduler.load_state_dict(dt["scheduler"])
                 print("Optimizer and Scheduler states loaded successfully.")
             except KeyError as e:
-                print(f"Error loading optimizer or scheduler state: {e} (No such key found)")
+                print(
+                    f"Error loading optimizer or scheduler state: {e} (No such key found)"
+                )
 
         # Load other training parameters
         self.exploration_rate = dt["exploration_rate"]
-        self.curr_step = dt.get("curr_step", 0) # Default value 0 as fallback
-        print(f"Loading step {self.curr_step}, with exploration rate {self.exploration_rate}")
-    
+        self.curr_step = dt.get("curr_step", 0)  # Default value 0 as fallback
+        print(
+            f"Loading step {self.curr_step}, with exploration rate {self.exploration_rate}"
+        )
+
     def save(self):
         """Saves the current model along with its optimizer, scheduler, and other parameters."""
         # Construct the save path
         save_path = f"{self.save_dir}/mario_net_step_{self.curr_step}_exp_{self.exploration_rate:.3f}_avgr_{self.avg_reward:.3f}.chkpt"
         # Save the checkpoint
         torch.save(
-            dict(model=self.net.state_dict(), 
-                 optimizer=self.optimizer.state_dict(),
-                 scheduler=self.scheduler.state_dict(),
-                 exploration_rate=self.exploration_rate,
-                 curr_step=self.curr_step,
-                 avg_reward=self.avg_reward,
-                 avg_loss=self.avg_loss
-                 ),
-            save_path
+            dict(
+                model=self.net.state_dict(),
+                optimizer=self.optimizer.state_dict(),
+                scheduler=self.scheduler.state_dict(),
+                exploration_rate=self.exploration_rate,
+                curr_step=self.curr_step,
+                avg_reward=self.avg_reward,
+                avg_loss=self.avg_loss,
+            ),
+            save_path,
         )
         print(f"MarioNet saved to {save_path} at step {self.curr_step}")
