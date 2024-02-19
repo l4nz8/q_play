@@ -8,11 +8,13 @@ This project implements a Reinforcement Learning (RL) agent that plays "Super Ma
 
 <table>
   <tbody>
+    <!-- Gif -->
     <tr>
       <td align="center">
         <img src="assets/SUPER_MARIOLAN_72h_RL_agent.gif" width="300"><br>
       </td>
     </tr>
+    <!-- Description -->
     <tr>
       <td align="center">
         <strong>72h trained model</strong>
@@ -87,6 +89,17 @@ To use a pre-trained model, download the `checkpoints/` folder from the google.d
 The same with the logged metrics.
 
 **[runs/](https://drive.google.com/drive/folders/14unJWiTpiiosiZAdMJgtgAOWTQpkiza2?usp=sharing)**
+
+## Documentation 🍰
+If you want to know more about the project read the documentation:  
+
+**[Documentation: (English)](https://docs.google.com/document/d/15uUgVP8PJc9lO-45dp5YI16WE9ySOaVecNvU2sPuxXs/edit?usp=sharing)**
+
+**[Documentation: (German)](https://docs.google.com/document/d/171trtRc4DkKr2gHy8AyJ_wlJQH4CMmkPqxXyICp6Mqw/edit?usp=sharing)**
+
+### Presentation:
+
+**[Presentation: (German)](https://www.canva.com/design/DAF9PVRl6no/9ulZRffVRH0LGy5jfWjNhQ/edit?utm_content=DAF9PVRl6no&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)**
 
 ## Based on:
 ### [DDQN](https://arxiv.org/abs/1509.06461)
