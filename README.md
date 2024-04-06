@@ -1,7 +1,6 @@
 # Train RL Mario AGENT
-![License MIT](https://img.shields.io/github/license/l4nz8/q_play)
-![Last Commit](https://img.shields.io/github/last-commit/l4nz8/q_play.svg)
-[![GitHub Workflow Status](https://github.com/l4nz8/q_play/actions/workflows/main.yml/badge.svg)](https://img.shields.io/github/actions/workflows/status/l4nz8/q_play/main.yml)
+[![License MIT](https://img.shields.io/github/license/l4nz8/q_play)](https://opensource.org/licenses/MIT)
+[![Linting](https://github.com/l4nz8/q_play/actions/workflows/main.yml/badge.svg)](https://github.com/l4nz8/q_play/actions/workflows/main.yml)
 
 ![Python](https://img.shields.io/badge/Python-FFD43B?style=for-the-badge&logo=python&logoColor=blue)
 
